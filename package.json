@@ -18,6 +18,7 @@
     "build:all": "npm run build && npm run build:python-engine",
     "dist": "npm run build:all && electron-builder --config electron-builder.json",
     "dist:win": "npm run build:all && electron-builder --win --config electron-builder.json",
+    "dist:win:publish": "npm run build:all && electron-builder --win --publish always --config electron-builder.json",
     "dist:linux": "npm run build:all && electron-builder --linux dir --config electron-builder.json",
     "preview": "vite preview",
     "start": "electron . --no-sandbox",
@@ -26,6 +27,7 @@
     "test:engine": "node scripts/smoke-test-engine.cjs"
   },
   "dependencies": {
+    "electron-updater": "^6.6.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

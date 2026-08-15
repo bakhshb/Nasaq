@@ -321,3 +321,17 @@ button.ghost {
   padding: 0.4rem 0.5rem;
   font: inherit;
 }
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.version-tag {
+  padding: 0.35rem 1.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: right;
+}

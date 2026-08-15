@@ -54,6 +54,21 @@ export interface ValidationIssue {
   message: string;
 }
 
+export type UpdatePhase =
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+export interface UpdateStatus {
+  phase: UpdatePhase;
+  version?: string;
+  percent?: number;
+  message?: string;
+}
+
 declare global {
   interface Window {
     nasaq: {
@@ -80,6 +95,11 @@ declare global {
       undoLastRename: () => Promise<{ undone: boolean; count?: number }>;
       canUndo: () => Promise<boolean>;
       getPaths: () => Promise<{ userData: string; configPath: string }>;
+      getVersion: () => Promise<string>;
+      checkForUpdates: () => Promise<void>;
+      downloadUpdate: () => Promise<void>;
+      installUpdate: () => Promise<void>;
+      onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
     };
   }
 }

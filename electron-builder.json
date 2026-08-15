@@ -12,6 +12,7 @@
     "package.json"
   ],
   "asar": true,
+  "asarUnpack": ["**/node_modules/electron-updater/**"],
   "extraResources": [
     {
       "from": "build/nasaq-engine/",
@@ -33,11 +34,18 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "Nasaq"
+    "shortcutName": "Nasaq",
+    "differentialPackage": true
   },
   "linux": {
     "target": ["dir"],
     "artifactName": "Nasaq-${version}-linux-${arch}.${ext}",
     "category": "Utility"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "bakhshb",
+    "repo": "Nasaq",
+    "releaseType": "release"
   }
 }

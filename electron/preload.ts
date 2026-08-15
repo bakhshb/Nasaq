@@ -1,4 +1,6 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+
+import type { UpdateStatus } from "./autoUpdater";
 
 export interface NasaqApi {
   ping: () => Promise<{ ok: boolean }>;
@@ -18,6 +20,11 @@ export interface NasaqApi {
   undoLastRename: () => Promise<{ undone: boolean; count?: number; batchId?: string }>;
   canUndo: () => Promise<boolean>;
   getPaths: () => Promise<{ userData: string; configPath: string }>;
+  getVersion: () => Promise<string>;
+  checkForUpdates: () => Promise<void>;
+  downloadUpdate: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
 }
 
 const api: NasaqApi = {
@@ -45,6 +52,19 @@ const api: NasaqApi = {
   canUndo: () => ipcRenderer.invoke("fs:canUndo") as Promise<boolean>,
   getPaths: () =>
     ipcRenderer.invoke("app:getPaths") as Promise<{ userData: string; configPath: string }>,
+  getVersion: () => ipcRenderer.invoke("app:getVersion") as Promise<string>,
+  checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates") as Promise<void>,
+  downloadUpdate: () => ipcRenderer.invoke("app:downloadUpdate") as Promise<void>,
+  installUpdate: () => ipcRenderer.invoke("app:installUpdate") as Promise<void>,
+  onUpdateStatus: (callback) => {
+    const listener = (_event: IpcRendererEvent, status: UpdateStatus) => {
+      callback(status);
+    };
+    ipcRenderer.on("update-status", listener);
+    return () => {
+      ipcRenderer.removeListener("update-status", listener);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld("nasaq", api);

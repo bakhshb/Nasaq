@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DocumentTypeManager from "./components/DocumentTypeManager";
 import FileReviewTable from "./components/FileReviewTable";
 import PreviewDialog from "./components/PreviewDialog";
+import UpdateBanner from "./components/UpdateBanner";
 import { getProposedFullName } from "./lib/buildProposedName";
 import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
 
@@ -164,11 +165,16 @@ export default function App() {
           <button type="button" onClick={() => setShowTypeManager(true)} disabled={loading}>
             Document types
           </button>
+          <button type="button" onClick={() => window.nasaq.checkForUpdates()} disabled={loading}>
+            Check for updates
+          </button>
           <button type="button" onClick={handleUndo} disabled={!canUndo || loading}>
             Undo last rename
           </button>
         </div>
       </header>
+
+      <UpdateBanner />
 
       <section className="folder-bar">
         <label className="recursive-toggle">

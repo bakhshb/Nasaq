@@ -1,5 +1,12 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 
+import {
+  checkForUpdates,
+  downloadUpdate,
+  initAutoUpdater,
+  installUpdate,
+  setUpdateWindow,
+} from "./autoUpdater";
 import { PythonBridge } from "./pythonBridge";
 import {
   applyRenames,
@@ -17,6 +24,7 @@ import {
 const python = new PythonBridge();
 let undoStack: RenameBatch[] = [];
 const isDev = !app.isPackaged;
+let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -41,6 +49,15 @@ function createWindow(): void {
   } else {
     window.loadFile(index);
   }
+
+  mainWindow = window;
+  setUpdateWindow(window);
+
+  window.on("closed", () => {
+    if (mainWindow === window) {
+      mainWindow = null;
+    }
+  });
 }
 
 app.whenReady().then(async () => {
@@ -117,6 +134,12 @@ app.whenReady().then(async () => {
     configPath: getConfigEnvPath(),
   }));
 
+  ipcMain.handle("app:getVersion", () => app.getVersion());
+  ipcMain.handle("app:checkForUpdates", () => checkForUpdates());
+  ipcMain.handle("app:downloadUpdate", () => downloadUpdate());
+  ipcMain.handle("app:installUpdate", () => installUpdate());
+
+  initAutoUpdater(app.isPackaged);
   createWindow();
 
   app.on("activate", () => {
