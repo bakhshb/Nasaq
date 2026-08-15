@@ -17,7 +17,7 @@
     "build": "npm run build:electron && npm run build:web",
     "build:all": "npm run build && npm run build:python-engine",
     "dist": "npm run build:all && electron-builder --config electron-builder.json",
-    "dist:win": "npm run build:all && electron-builder --win --config electron-builder.json",
+    "dist:win": "npm run build:all && electron-builder --win --publish never --config electron-builder.json",
     "dist:win:publish": "npm run build:all && electron-builder --win --publish always --config electron-builder.json",
     "dist:linux": "npm run build:all && electron-builder --linux dir --config electron-builder.json",
     "preview": "vite preview",
