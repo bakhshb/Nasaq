@@ -1,0 +1,43 @@
+{
+  "appId": "com.nasaq.desktop",
+  "productName": "Nasaq",
+  "copyright": "Copyright © 2026 Nasaq",
+  "directories": {
+    "output": "release",
+    "buildResources": "build/installer"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "extraResources": [
+    {
+      "from": "build/nasaq-engine/",
+      "to": "nasaq-engine",
+      "filter": ["nasaq-engine", "nasaq-engine.exe"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "Nasaq-${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Nasaq"
+  },
+  "linux": {
+    "target": ["dir"],
+    "artifactName": "Nasaq-${version}-linux-${arch}.${ext}",
+    "category": "Utility"
+  }
+}

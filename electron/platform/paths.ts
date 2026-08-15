@@ -24,6 +24,20 @@ export function getPythonSpawnOptions(): { command: string; args: string[]; env:
     return { command: bundledUnix, args: [], env };
   }
 
+  const repoRoot = path.resolve(__dirname, "..", "..");
+  const devBundledWin = path.join(repoRoot, "build", "nasaq-engine", "nasaq-engine.exe");
+  const devBundledUnix = path.join(repoRoot, "build", "nasaq-engine", "nasaq-engine");
+  if (!app.isPackaged && fs.existsSync(devBundledUnix)) {
+    return { command: devBundledUnix, args: [], env };
+  }
+  if (!app.isPackaged && fs.existsSync(devBundledWin)) {
+    return { command: devBundledWin, args: [], env };
+  }
+
+  if (process.env.NASAQ_ENGINE_PATH && fs.existsSync(process.env.NASAQ_ENGINE_PATH)) {
+    return { command: process.env.NASAQ_ENGINE_PATH, args: [], env };
+  }
+
   if (process.env.NASAQ_PYTHON && fs.existsSync(process.env.NASAQ_PYTHON)) {
     return {
       command: process.env.NASAQ_PYTHON,
@@ -32,7 +46,6 @@ export function getPythonSpawnOptions(): { command: string; args: string[]; env:
     };
   }
 
-  const repoRoot = path.resolve(__dirname, "..");
   env.PYTHONPATH = path.join(repoRoot, "python");
   const venvCandidates = [
     path.join(repoRoot, "python", ".venv", "bin", "python"),
@@ -58,5 +71,5 @@ export function resolveIndexHtml(isDev: boolean): string {
   if (isDev) {
     return "http://localhost:5173";
   }
-  return path.join(__dirname, "../dist/index.html");
+  return path.join(__dirname, "../../dist/index.html");
 }
