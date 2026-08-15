@@ -1,0 +1,29 @@
+{
+  "name": "nasaq",
+  "version": "0.1.0",
+  "description": "Organize and rename work files consistently",
+  "main": "dist-electron/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "npm run build:electron && concurrently -k \"vite\" \"tsc -p electron/tsconfig.json -w\" \"wait-on http://localhost:5173 && electron . --no-sandbox\"",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "build": "npm run build:electron && vite build",
+    "preview": "vite preview",
+    "start": "electron . --no-sandbox",
+    "test:python": "cd python && .venv/bin/pytest -q"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^34.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6",
+    "wait-on": "^8.0.1"
+  }
+}
