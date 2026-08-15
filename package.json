@@ -22,7 +22,7 @@
     "preview": "vite preview",
     "start": "electron . --no-sandbox",
     "start:packaged": "electron . --no-sandbox",
-    "test:python": "cd python && .venv/bin/pytest -q",
+    "test:python": "node scripts/test-python.cjs",
     "test:engine": "node scripts/smoke-test-engine.cjs"
   },
   "dependencies": {
