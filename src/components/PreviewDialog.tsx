@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getProposedFullName } from "../lib/buildProposedName";
 import type { ReviewRow, ValidationIssue } from "../types";
@@ -8,12 +8,31 @@ interface Props {
   rows: ReviewRow[];
   separator: string;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (rows: ReviewRow[]) => void;
+}
+
+function normalizeFilename(name: string): string {
+  return name.trim().toLowerCase().normalize("NFC");
 }
 
 export default function PreviewDialog({ rootPath, rows, separator, onClose, onConfirm }: Props) {
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const hasActualChanges = useMemo(
+    () =>
+      rows.some((row) => {
+        const proposed = getProposedFullName(
+          row.topic,
+          row.documentType,
+          row.versionStatus,
+          row.extension,
+          separator,
+        );
+        return normalizeFilename(proposed) !== normalizeFilename(row.currentFullName);
+      }),
+    [rows, separator],
+  );
 
   useEffect(() => {
     const validate = async () => {
@@ -68,6 +87,15 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
 
         {loading && <p className="modal-note">جاري التحقق…</p>}
 
+        {!loading && !hasActualChanges && (
+          <div className="validation-issues">
+            <strong>لا يوجد تغيير في الأسماء</strong>
+            <p className="modal-note">
+              الاسم المقترح مطابق للاسم الحالي لكل الملفات المحددة. عدّل الحقول ثم أعد المحاولة.
+            </p>
+          </div>
+        )}
+
         {issues.length > 0 && (
           <div className="validation-issues">
             <strong>مشكلات التحقق</strong>
@@ -115,8 +143,12 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
           <button
             type="button"
             className="primary"
-            onClick={onConfirm}
-            disabled={loading || issues.some((i) => i.code === "duplicate_proposed_name" || i.code === "invalid_windows_chars")}
+            onClick={() => onConfirm(rows)}
+            disabled={
+              loading ||
+              !hasActualChanges ||
+              issues.some((i) => i.code === "duplicate_proposed_name" || i.code === "invalid_windows_chars")
+            }
           >
             تأكيد إعادة التسمية
           </button>

@@ -13,7 +13,8 @@ import {
 import PreviewDialog from "./components/PreviewDialog";
 import UpdateBanner from "./components/UpdateBanner";
 import { getProposedFullName } from "./lib/buildProposedName";
-import { getFileRenameStatus, type FileFilter } from "./lib/fileStatus";
+import { getFileRenameStatus, hasPendingEdits, type FileFilter } from "./lib/fileStatus";
+import { mergeRowsAfterScan } from "./lib/mergeRowsAfterScan";
 import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
 
 function toReviewRow(file: AnalyzedFile): ReviewRow {
@@ -80,14 +81,16 @@ function MainApp() {
   }, [loadConfig]);
 
   const scanFolder = useCallback(
-    async (path: string) => {
+    async (path: string, options?: { preserveStatus?: boolean }) => {
       setLoading(true);
       setError(null);
-      setStatusMessage(null);
+      if (!options?.preserveStatus) {
+        setStatusMessage(null);
+      }
       try {
         const result = await window.nasaq.scanAndAnalyze({ rootPath: path, recursive });
         setRootPath(path);
-        setRows(result.files.map(toReviewRow));
+        setRows((prev) => mergeRowsAfterScan(prev, result.files.map(toReviewRow)));
       } catch (err) {
         setError(String(err));
       } finally {
@@ -111,7 +114,25 @@ function MainApp() {
   };
 
   const updateRow = (id: string, patch: Partial<ReviewRow>) => {
-    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) {
+          return row;
+        }
+
+        const updated = { ...row, ...patch };
+        const fieldEdited =
+          patch.topic !== undefined ||
+          patch.documentType !== undefined ||
+          patch.versionStatus !== undefined;
+
+        if (fieldEdited && hasPendingEdits(updated) && getFileRenameStatus(updated) === "needs_rename") {
+          return { ...updated, selected: true };
+        }
+
+        return updated;
+      }),
+    );
   };
 
   const selectedRows = useMemo(() => rows.filter((r) => r.selected), [rows]);
@@ -151,29 +172,28 @@ function MainApp() {
     setShowPreview(true);
   };
 
-  const handleConfirmRename = async () => {
-    if (!rootPath) return;
+  const handleConfirmRename = async (rowsToRename: ReviewRow[]) => {
+    if (!rootPath || rowsToRename.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      const items = selectedRows.map((row) => ({
+      const items = rowsToRename.map((row) => ({
         id: row.id,
         absolutePath: row.absolutePath,
         proposedFullName: getRowProposedFullName(row),
       }));
 
-      const renamedIds = new Set(selectedRows.map((row) => row.id));
-
       const result = await window.nasaq.renameBatch({ rootPath, items });
-      setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
       setShowPreview(false);
+
+      if (result.count === 0) {
+        setStatusMessage("لم يتغيّر أي اسم — الاسم المقترح مطابق للاسم الحالي.");
+        return;
+      }
+
+      setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
       setCanUndo(true);
-      setRows((prev) =>
-        prev.map((row) =>
-          renamedIds.has(row.id) ? { ...row, renameApplied: true, selected: false } : row,
-        ),
-      );
-      await scanFolder(rootPath);
+      await scanFolder(rootPath, { preserveStatus: true });
     } catch (err) {
       setError(String(err));
     } finally {
