@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+
+import { bootstrapLog } from "./bootstrapLog";
 import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
 
 import {
@@ -17,22 +19,41 @@ import {
   RenameMove,
   undoRenames,
 } from "./rename";
-import { getAppRoot, getConfigEnvPath } from "./platform/paths";
+import { getConfigEnvPath } from "./platform/paths";
+
+bootstrapLog(`main.ts start pid=${process.pid} packaged=${String(app.isPackaged)}`);
 
 const python = new PythonBridge();
 let undoStack: RenameBatch[] = [];
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 
+if (app.isPackaged) {
+  app.setPath("userData", path.join(app.getPath("appData"), "Nasaq"));
+}
+
 function logStartup(message: string): void {
+  bootstrapLog(message);
   try {
     const logDir = path.join(app.getPath("userData"), "logs");
     fs.mkdirSync(logDir, { recursive: true });
-    const line = `${new Date().toISOString()} ${message}\n`;
-    fs.appendFileSync(path.join(logDir, "startup.log"), line, "utf8");
+    fs.appendFileSync(path.join(logDir, "startup.log"), `${new Date().toISOString()} ${message}\n`, "utf8");
   } catch {
-    // ignore logging failures
+    // ignore
   }
+}
+
+function resolvePackagedAsset(relativePath: string): string {
+  if (!app.isPackaged) {
+    return path.join(__dirname, "..", relativePath);
+  }
+
+  const unpacked = path.join(process.resourcesPath, "app.asar.unpacked", relativePath);
+  if (fs.existsSync(unpacked)) {
+    return unpacked;
+  }
+
+  return path.join(__dirname, "..", relativePath);
 }
 
 function resolvePreloadPath(): string {
@@ -40,7 +61,18 @@ function resolvePreloadPath(): string {
 }
 
 function resolveIndexHtmlPath(): string {
-  return path.join(getAppRoot(), "dist", "index.html");
+  return resolvePackagedAsset("dist/index.html");
+}
+
+function showLoadError(window: BrowserWindow, details: string): void {
+  const html = `
+    <html><body style="font-family:Segoe UI;padding:24px">
+      <h2>Nasaq failed to load the interface</h2>
+      <pre style="white-space:pre-wrap">${details}</pre>
+      <p>Log file: %APPDATA%\\Nasaq\\logs\\startup.log</p>
+      <p>Or: %TEMP%\\Nasaq-startup.log</p>
+    </body></html>`;
+  window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
 function registerIpcHandlers(): void {
@@ -121,8 +153,10 @@ function createWindow(): void {
   const preloadPath = resolvePreloadPath();
   const indexPath = resolveIndexHtmlPath();
 
-  logStartup(`createWindow preload=${preloadPath} index=${indexPath}`);
+  logStartup(`createWindow preload=${preloadPath}`);
+  logStartup(`createWindow index=${indexPath}`);
   logStartup(`preload exists=${fs.existsSync(preloadPath)} index exists=${fs.existsSync(indexPath)}`);
+  logStartup(`resourcesPath=${process.resourcesPath} appPath=${app.getAppPath()}`);
 
   const window = new BrowserWindow({
     width: 1280,
@@ -135,7 +169,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: isDev,
+      webSecurity: false,
     },
   });
 
@@ -146,24 +180,32 @@ function createWindow(): void {
   if (isDev) {
     window.loadURL("http://localhost:5173");
     window.webContents.openDevTools({ mode: "detach" });
+  } else if (!fs.existsSync(indexPath)) {
+    const details = `index.html not found at:\n${indexPath}`;
+    logStartup(details);
+    showLoadError(window, details);
   } else {
-    window.loadFile(indexPath);
+    window.loadFile(indexPath).catch((error: Error) => {
+      const details = `loadFile failed: ${error.message}`;
+      logStartup(details);
+      showLoadError(window, details);
+    });
   }
 
   window.webContents.on("did-finish-load", () => {
-    logStartup("did-finish-load");
+    logStartup("did-finish-load url=" + window.webContents.getURL());
   });
 
   window.webContents.on("did-fail-load", (_event, code, description, url) => {
     const message = `did-fail-load code=${code} desc=${description} url=${url}`;
-    console.error(message);
     logStartup(message);
+    if (!isDev) {
+      showLoadError(window, message);
+    }
   });
 
   window.webContents.on("preload-error", (_event, preloadPathArg, error) => {
-    const message = `preload-error path=${preloadPathArg} err=${error.message}`;
-    console.error(message);
-    logStartup(message);
+    logStartup(`preload-error path=${preloadPathArg} err=${error.message}`);
   });
 
   mainWindow = window;
@@ -176,13 +218,21 @@ function createWindow(): void {
   });
 }
 
+process.on("uncaughtException", (error) => {
+  logStartup(`uncaughtException: ${error.stack || error.message}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logStartup(`unhandledRejection: ${String(reason)}`);
+});
+
 app.whenReady().then(async () => {
+  logStartup("app ready");
   Menu.setApplicationMenu(null);
   registerIpcHandlers();
   createWindow();
 
   python.start().catch((error) => {
-    console.error("Failed to start Python sidecar:", error);
     logStartup(`python start failed: ${String(error)}`);
   });
 
