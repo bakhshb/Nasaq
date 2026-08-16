@@ -29,6 +29,10 @@ function toReviewRow(file: AnalyzedFile): ReviewRow {
     topic: file.topic,
     versionStatus: file.versionStatus,
     scannedProposedFullName: file.proposedFullName,
+    scannedTopic: file.topic,
+    scannedDocumentType: file.documentType,
+    scannedVersionStatus: file.versionStatus,
+    renameApplied: false,
     selected: false,
     warnings: file.warnings ?? [],
   };
@@ -120,7 +124,7 @@ function MainApp() {
     let organized = 0;
     let needsRename = 0;
     for (const row of rows) {
-      const status = getFileRenameStatus(row.currentFullName, row.scannedProposedFullName);
+      const status = getFileRenameStatus(row);
       if (status === "organized") {
         organized += 1;
       } else {
@@ -134,7 +138,7 @@ function MainApp() {
     setRows((prev) =>
       prev.map((row) => ({
         ...row,
-        selected: getFileRenameStatus(row.currentFullName, row.scannedProposedFullName) === "needs_rename",
+        selected: getFileRenameStatus(row) === "needs_rename",
       })),
     );
   };
@@ -158,10 +162,17 @@ function MainApp() {
         proposedFullName: getRowProposedFullName(row),
       }));
 
+      const renamedIds = new Set(selectedRows.map((row) => row.id));
+
       const result = await window.nasaq.renameBatch({ rootPath, items });
       setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
       setShowPreview(false);
       setCanUndo(true);
+      setRows((prev) =>
+        prev.map((row) =>
+          renamedIds.has(row.id) ? { ...row, renameApplied: true, selected: false } : row,
+        ),
+      );
       await scanFolder(rootPath);
     } catch (err) {
       setError(String(err));

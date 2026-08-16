@@ -45,6 +45,10 @@ export interface ReviewRow {
   topic: string;
   versionStatus: string;
   scannedProposedFullName: string;
+  scannedTopic: string;
+  scannedDocumentType: string;
+  scannedVersionStatus: string;
+  renameApplied: boolean;
   selected: boolean;
   warnings: string[];
 }
