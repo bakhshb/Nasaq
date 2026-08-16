@@ -90,7 +90,7 @@ function MainApp() {
       try {
         const result = await window.nasaq.scanAndAnalyze({ rootPath: path, recursive });
         setRootPath(path);
-        setRows((prev) => mergeRowsAfterScan(prev, result.files.map(toReviewRow)));
+        setRows((prev) => mergeRowsAfterScan(prev, result.files.map(toReviewRow), separator));
       } catch (err) {
         setError(String(err));
       } finally {
@@ -126,7 +126,7 @@ function MainApp() {
           patch.documentType !== undefined ||
           patch.versionStatus !== undefined;
 
-        if (fieldEdited && hasPendingEdits(updated) && getFileRenameStatus(updated) === "needs_rename") {
+        if (fieldEdited && hasPendingEdits(updated) && getFileRenameStatus(updated, separator) === "needs_rename") {
           return { ...updated, selected: true };
         }
 
@@ -145,7 +145,7 @@ function MainApp() {
     let organized = 0;
     let needsRename = 0;
     for (const row of rows) {
-      const status = getFileRenameStatus(row);
+      const status = getFileRenameStatus(row, separator);
       if (status === "organized") {
         organized += 1;
       } else {
@@ -159,7 +159,7 @@ function MainApp() {
     setRows((prev) =>
       prev.map((row) => ({
         ...row,
-        selected: getFileRenameStatus(row) === "needs_rename",
+        selected: getFileRenameStatus(row, separator) === "needs_rename",
       })),
     );
   };

@@ -1,17 +1,34 @@
+import { getProposedFullName } from "./buildProposedName";
 import type { ReviewRow } from "../types";
-import { hasPendingEdits } from "./fileStatus";
+import { filenamesMatch, hasPendingEdits } from "./fileStatus";
 
 /**
  * Preserve user edits and selection when refreshing scan results for the same files.
+ * After a successful rename, keep fresh scan values instead of stale field edits.
  */
-export function mergeRowsAfterScan(previous: ReviewRow[], scanned: ReviewRow[]): ReviewRow[] {
+export function mergeRowsAfterScan(
+  previous: ReviewRow[],
+  scanned: ReviewRow[],
+  separator: string,
+): ReviewRow[] {
   const byAbsolutePath = new Map(previous.map((row) => [row.absolutePath, row]));
-  const byRelativePath = new Map(previous.map((row) => [row.relativePath, row]));
 
   return scanned.map((row) => {
-    const prior = byAbsolutePath.get(row.absolutePath) ?? byRelativePath.get(row.relativePath);
+    const prior = byAbsolutePath.get(row.absolutePath);
     if (!prior) {
       return row;
+    }
+
+    const priorProposed = getProposedFullName(
+      prior.topic,
+      prior.documentType,
+      prior.versionStatus,
+      prior.extension,
+      separator,
+    );
+
+    if (filenamesMatch(row.currentFullName, priorProposed)) {
+      return { ...row, selected: false };
     }
 
     if (!hasPendingEdits(prior)) {
