@@ -25,6 +25,7 @@ export interface NasaqApi {
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+  log: (message: string) => Promise<void>;
 }
 
 const api: NasaqApi = {
@@ -65,6 +66,8 @@ const api: NasaqApi = {
       ipcRenderer.removeListener("update-status", listener);
     };
   },
+  log: (message) => ipcRenderer.invoke("app:log", message) as Promise<void>,
 };
 
 contextBridge.exposeInMainWorld("nasaq", api);
+ipcRenderer.invoke("app:log", "preload.js loaded").catch(() => undefined);

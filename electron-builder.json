@@ -7,13 +7,17 @@
     "buildResources": "installer"
   },
   "files": [
-    "dist/**/*",
     "dist-electron/**/*",
     "package.json"
   ],
   "asar": true,
-  "asarUnpack": ["dist/**", "**/node_modules/electron-updater/**"],
+  "asarUnpack": ["dist-electron/preload.js", "**/node_modules/electron-updater/**"],
   "extraResources": [
+    {
+      "from": "dist",
+      "to": "ui",
+      "filter": ["**/*"]
+    },
     {
       "from": "build/nasaq-engine/",
       "to": "nasaq-engine",

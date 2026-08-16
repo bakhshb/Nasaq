@@ -43,25 +43,21 @@ function logStartup(message: string): void {
   }
 }
 
-function resolvePackagedAsset(relativePath: string): string {
-  if (!app.isPackaged) {
-    return path.join(__dirname, "..", relativePath);
-  }
-
-  const unpacked = path.join(process.resourcesPath, "app.asar.unpacked", relativePath);
-  if (fs.existsSync(unpacked)) {
-    return unpacked;
-  }
-
-  return path.join(__dirname, "..", relativePath);
-}
-
 function resolvePreloadPath(): string {
+  if (app.isPackaged) {
+    const unpacked = path.join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "preload.js");
+    if (fs.existsSync(unpacked)) {
+      return unpacked;
+    }
+  }
   return path.join(__dirname, "preload.js");
 }
 
 function resolveIndexHtmlPath(): string {
-  return resolvePackagedAsset("dist/index.html");
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "ui", "index.html");
+  }
+  return path.join(__dirname, "..", "dist", "index.html");
 }
 
 function showLoadError(window: BrowserWindow, details: string): void {
@@ -69,13 +65,16 @@ function showLoadError(window: BrowserWindow, details: string): void {
     <html><body style="font-family:Segoe UI;padding:24px">
       <h2>Nasaq failed to load the interface</h2>
       <pre style="white-space:pre-wrap">${details}</pre>
-      <p>Log file: %APPDATA%\\Nasaq\\logs\\startup.log</p>
-      <p>Or: %TEMP%\\Nasaq-startup.log</p>
+      <p>Log: %TEMP%\\Nasaq-startup.log</p>
     </body></html>`;
   window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle("app:log", (_event, message: string) => {
+    logStartup(`renderer: ${message}`);
+  });
+
   ipcMain.handle("nasaq:ping", () => python.call("ping", {}));
   ipcMain.handle("nasaq:getConfig", () => python.call("get_config", {}));
   ipcMain.handle("nasaq:updateConfig", (_event, partial: Record<string, unknown>) =>
@@ -149,6 +148,25 @@ function registerIpcHandlers(): void {
   ipcMain.handle("app:installUpdate", () => installUpdate());
 }
 
+function attachRendererLogging(window: BrowserWindow): void {
+  window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    logStartup(`console[${level}] ${message} (${sourceId}:${line})`);
+  });
+
+  window.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      logStartup(
+        `did-fail-load main=${isMainFrame} code=${errorCode} url=${validatedURL} desc=${errorDescription}`,
+      );
+    },
+  );
+
+  window.webContents.on("preload-error", (_event, preloadPathArg, error) => {
+    logStartup(`preload-error path=${preloadPathArg} err=${error.message}`);
+  });
+}
+
 function createWindow(): void {
   const preloadPath = resolvePreloadPath();
   const indexPath = resolveIndexHtmlPath();
@@ -156,7 +174,13 @@ function createWindow(): void {
   logStartup(`createWindow preload=${preloadPath}`);
   logStartup(`createWindow index=${indexPath}`);
   logStartup(`preload exists=${fs.existsSync(preloadPath)} index exists=${fs.existsSync(indexPath)}`);
-  logStartup(`resourcesPath=${process.resourcesPath} appPath=${app.getAppPath()}`);
+
+  const assetsDir = path.join(path.dirname(indexPath), "assets");
+  if (fs.existsSync(assetsDir)) {
+    logStartup(`assets: ${fs.readdirSync(assetsDir).join(", ")}`);
+  } else {
+    logStartup(`assets dir missing: ${assetsDir}`);
+  }
 
   const window = new BrowserWindow({
     width: 1280,
@@ -173,6 +197,8 @@ function createWindow(): void {
     },
   });
 
+  attachRendererLogging(window);
+
   window.once("ready-to-show", () => {
     window.show();
   });
@@ -181,31 +207,29 @@ function createWindow(): void {
     window.loadURL("http://localhost:5173");
     window.webContents.openDevTools({ mode: "detach" });
   } else if (!fs.existsSync(indexPath)) {
-    const details = `index.html not found at:\n${indexPath}`;
-    logStartup(details);
-    showLoadError(window, details);
+    showLoadError(window, `index.html not found:\n${indexPath}`);
   } else {
     window.loadFile(indexPath).catch((error: Error) => {
-      const details = `loadFile failed: ${error.message}`;
-      logStartup(details);
-      showLoadError(window, details);
+      showLoadError(window, `loadFile failed: ${error.message}`);
     });
   }
 
   window.webContents.on("did-finish-load", () => {
-    logStartup("did-finish-load url=" + window.webContents.getURL());
-  });
-
-  window.webContents.on("did-fail-load", (_event, code, description, url) => {
-    const message = `did-fail-load code=${code} desc=${description} url=${url}`;
-    logStartup(message);
-    if (!isDev) {
-      showLoadError(window, message);
-    }
-  });
-
-  window.webContents.on("preload-error", (_event, preloadPathArg, error) => {
-    logStartup(`preload-error path=${preloadPathArg} err=${error.message}`);
+    logStartup(`did-finish-load url=${window.webContents.getURL()}`);
+    window.webContents
+      .executeJavaScript(
+        `({
+          scripts: Array.from(document.scripts).map(s => s.src),
+          rootHtml: document.getElementById('root')?.innerHTML?.slice(0, 200),
+          hasNasaq: typeof window.nasaq !== 'undefined'
+        })`,
+      )
+      .then((snapshot) => {
+        logStartup(`renderer snapshot: ${JSON.stringify(snapshot)}`);
+      })
+      .catch((error: Error) => {
+        logStartup(`renderer snapshot failed: ${error.message}`);
+      });
   });
 
   mainWindow = window;

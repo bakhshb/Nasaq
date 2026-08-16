@@ -100,6 +100,7 @@ declare global {
       downloadUpdate: () => Promise<void>;
       installUpdate: () => Promise<void>;
       onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+      log: (message: string) => Promise<void>;
     };
   }
 }

@@ -7,7 +7,19 @@ function stripCrossoriginForElectron(): Plugin {
     name: "strip-crossorigin-for-electron",
     apply: "build",
     transformIndexHtml(html) {
-      return html.replace(/\s+crossorigin/g, "").replace(/type="module"\s+/g, "");
+      const withoutCrossorigin = html.replace(/\s+crossorigin/g, "").replace(/type="module"\s+/g, "");
+      if (withoutCrossorigin.includes("</body>")) {
+        return withoutCrossorigin.replace(
+          "</body>",
+          `<script>
+            window.addEventListener('error', function(e) {
+              var root = document.getElementById('root');
+              if (root) root.innerHTML = '<pre style="padding:16px;color:#b42318">Script error: ' + e.message + '</pre>';
+            });
+          </script></body>`,
+        );
+      }
+      return withoutCrossorigin;
     },
   };
 }
