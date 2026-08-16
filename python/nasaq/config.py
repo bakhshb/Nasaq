@@ -47,6 +47,7 @@ DEFAULT_VERSION_STATUS_KEYWORDS = [
     "مرسل",
     "مصدرة",
     "مصدر",
+    "مراجعة",
 ]
 
 DEFAULT_NOISE_WORDS = [

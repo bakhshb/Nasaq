@@ -18,6 +18,25 @@ _DATE_TAIL_PATTERNS = (
     r"(\d{2}-\d{2}-\d{4})",
     r"(\d{2}/\d{2}/\d{4})",
 )
+_ARABIC_MONTHS = (
+    r"يناير",
+    r"فبراير",
+    r"مارس",
+    r"[اأ]بريل",
+    r"مايو",
+    r"يونيو",
+    r"يوليو",
+    r"[اأ]غسطس",
+    r"سبتمبر",
+    r"[اأ]كتوبر",
+    r"نوفمبر",
+    r"ديسمبر",
+)
+_ARABIC_MONTH_PATTERN = "(?:" + "|".join(_ARABIC_MONTHS) + ")"
+_KEYWORD_MODIFIER_TAILS = _DATE_TAIL_PATTERNS + (
+    rf"\d{{1,2}}\s+{_ARABIC_MONTH_PATTERN}(?:\s+\d{{4}})?",
+    rf"{_ARABIC_MONTH_PATTERN}(?:\s+\d{{4}})?",
+)
 _QUARTER = re.compile(r"\b(Q[1-4]\s+\d{4})\b", re.IGNORECASE)
 _QUARTER_SHORT = re.compile(r"\b(Q[1-4])\b", re.IGNORECASE)
 _VERSION_V = re.compile(r"\b(V\d+)\b", re.IGNORECASE)
@@ -100,7 +119,7 @@ def _match_keyword_with_date(raw: str, keywords: List[str]) -> VersionStatusMatc
         if not key:
             continue
         escaped = re.escape(key)
-        for tail in _DATE_TAIL_PATTERNS:
+        for tail in _KEYWORD_MODIFIER_TAILS:
             if re.fullmatch(rf"{escaped}\s+{tail}", text, flags=re.IGNORECASE):
                 return VersionStatusMatch(
                     value=text,

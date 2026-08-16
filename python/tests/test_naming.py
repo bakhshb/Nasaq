@@ -193,3 +193,14 @@ def test_structured_name_with_document_status_keywords(status: str):
     assert result.document_type == "احتياجات الاعمال"
     assert result.version_status == status
     assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_with_review_and_arabic_month():
+    config = default_config()
+    name = "نظام انجاز تنفيذي - تقرير - مراجعة 2 اغسطس"
+    result = analyze_file(_scanned(name + ".pdf"), config)
+
+    assert result.topic == "نظام انجاز تنفيذي"
+    assert result.document_type == "تقرير"
+    assert result.version_status == "مراجعة 2 اغسطس"
+    assert result.proposed_full_name == name + ".pdf"
