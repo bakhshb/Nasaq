@@ -13,6 +13,7 @@ import {
 import PreviewDialog from "./components/PreviewDialog";
 import UpdateBanner from "./components/UpdateBanner";
 import { getProposedFullName } from "./lib/buildProposedName";
+import { getFileRenameStatus, type FileFilter } from "./lib/fileStatus";
 import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
 
 function toReviewRow(file: AnalyzedFile): ReviewRow {
@@ -58,6 +59,7 @@ function MainApp() {
   const [canUndo, setCanUndo] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState("");
+  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
 
   const loadConfig = useCallback(async () => {
     const data = await window.nasaq.getConfig();
@@ -112,6 +114,44 @@ function MainApp() {
 
   const getRowProposedFullName = (row: ReviewRow) =>
     getProposedFullName(row.topic, row.documentType, row.versionStatus, row.extension, separator);
+
+  const rowStats = useMemo(() => {
+    let organized = 0;
+    let needsRename = 0;
+    for (const row of rows) {
+      const status = getFileRenameStatus(
+        row.currentFullName,
+        row.topic,
+        row.documentType,
+        row.versionStatus,
+        row.extension,
+        separator,
+      );
+      if (status === "organized") {
+        organized += 1;
+      } else {
+        needsRename += 1;
+      }
+    }
+    return { organized, needsRename };
+  }, [rows, separator]);
+
+  const handleSelectRemaining = () => {
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        selected:
+          getFileRenameStatus(
+            row.currentFullName,
+            row.topic,
+            row.documentType,
+            row.versionStatus,
+            row.extension,
+            separator,
+          ) === "needs_rename",
+      })),
+    );
+  };
 
   const handleApplyClick = () => {
     if (selectedCount === 0) {
@@ -198,9 +238,15 @@ function MainApp() {
             <CloudDownloadIcon />
             التحقق من التحديثات
           </button>
-          <button type="button" className="toolbar-btn" onClick={handleUndo} disabled={!canUndo || loading}>
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={handleUndo}
+            disabled={!canUndo || loading}
+            title="التراجع عن آخر تغيير اسم"
+          >
             <UndoIcon />
-            التراجع عن آخر تغيير اسم
+            تراجع
           </button>
         </div>
       </header>
@@ -247,18 +293,56 @@ function MainApp() {
             <p>حدّد مجلدًا لمسح الملفات ومراجعة الأسماء المقترحة.</p>
           </div>
         ) : (
-          <FileReviewTable
-            rows={rows}
-            documentTypes={config?.documentTypes ?? []}
-            separator={separator}
-            onUpdateRow={updateRow}
-          />
+          <>
+            <div className="table-toolbar">
+              <div className="filter-group" role="group" aria-label="تصفية الملفات">
+                <button
+                  type="button"
+                  className={fileFilter === "all" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("all")}
+                >
+                  الكل ({rows.length})
+                </button>
+                <button
+                  type="button"
+                  className={fileFilter === "remaining" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("remaining")}
+                >
+                  المتبقي ({rowStats.needsRename})
+                </button>
+                <button
+                  type="button"
+                  className={fileFilter === "organized" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("organized")}
+                >
+                  المنظم ({rowStats.organized})
+                </button>
+              </div>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={handleSelectRemaining}
+                disabled={rowStats.needsRename === 0 || loading}
+              >
+                تحديد المتبقي
+              </button>
+            </div>
+            <FileReviewTable
+              rows={rows}
+              documentTypes={config?.documentTypes ?? []}
+              separator={separator}
+              filter={fileFilter}
+              onUpdateRow={updateRow}
+            />
+          </>
         )}
       </main>
 
       <footer className="app-footer">
         <div className="footer-meta">
-          <span className="footer-selection">{selectedCount} selected</span>
+          <span className="footer-selection">
+            {rowStats.needsRename} يحتاج تسمية · {rowStats.organized} منظم · {selectedCount} محدد
+          </span>
           {appVersion && <span className="footer-version">v{appVersion}</span>}
         </div>
         <button
