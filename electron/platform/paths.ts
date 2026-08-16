@@ -79,9 +79,6 @@ export function resolvePreloadPath(): string {
   return path.join(getElectronRoot(), "preload.js");
 }
 
-export function resolveWindowUrl(isDev: boolean): string {
-  if (isDev) {
-    return "http://localhost:5173";
-  }
-  return "app://bundle/dist/index.html";
+export function resolveIndexHtmlPath(): string {
+  return path.join(getAppRoot(), "dist", "index.html");
 }

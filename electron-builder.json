@@ -12,10 +12,7 @@
     "package.json"
   ],
   "asar": true,
-  "asarUnpack": [
-    "**/node_modules/electron-updater/**",
-    "dist-electron/preload.js"
-  ],
+  "asarUnpack": ["**/node_modules/electron-updater/**"],
   "extraResources": [
     {
       "from": "build/nasaq-engine/",

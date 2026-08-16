@@ -1,4 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import fs from "fs";
+import path from "path";
+import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
 
 import {
   checkForUpdates,
@@ -15,69 +17,33 @@ import {
   RenameMove,
   undoRenames,
 } from "./rename";
-import {
-  getConfigEnvPath,
-  resolvePreloadPath,
-  resolveWindowUrl,
-} from "./platform/paths";
-import { registerAppProtocol, registerPrivilegedSchemes } from "./protocol";
+import { getAppRoot, getConfigEnvPath } from "./platform/paths";
 
 const python = new PythonBridge();
 let undoStack: RenameBatch[] = [];
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 
-registerPrivilegedSchemes();
-
-function createWindow(): void {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    minWidth: 960,
-    minHeight: 600,
-    webPreferences: {
-      preload: resolvePreloadPath(),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  });
-
-  const url = resolveWindowUrl(isDev);
-  window.loadURL(url);
-  if (isDev) {
-    window.webContents.openDevTools({ mode: "detach" });
+function logStartup(message: string): void {
+  try {
+    const logDir = path.join(app.getPath("userData"), "logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const line = `${new Date().toISOString()} ${message}\n`;
+    fs.appendFileSync(path.join(logDir, "startup.log"), line, "utf8");
+  } catch {
+    // ignore logging failures
   }
-
-  window.webContents.on("did-fail-load", (_event, code, description, url) => {
-    console.error("Window failed to load:", code, description, url);
-  });
-
-  window.webContents.on("preload-error", (_event, preloadPath, error) => {
-    console.error("Preload failed:", preloadPath, error);
-  });
-
-  mainWindow = window;
-  setUpdateWindow(window);
-
-  window.on("closed", () => {
-    if (mainWindow === window) {
-      mainWindow = null;
-    }
-  });
 }
 
-app.whenReady().then(async () => {
-  if (app.isPackaged) {
-    registerAppProtocol();
-  }
+function resolvePreloadPath(): string {
+  return path.join(__dirname, "preload.js");
+}
 
-  try {
-    await python.start();
-  } catch (error) {
-    console.error("Failed to start Python sidecar:", error);
-  }
+function resolveIndexHtmlPath(): string {
+  return path.join(getAppRoot(), "dist", "index.html");
+}
 
+function registerIpcHandlers(): void {
   ipcMain.handle("nasaq:ping", () => python.call("ping", {}));
   ipcMain.handle("nasaq:getConfig", () => python.call("get_config", {}));
   ipcMain.handle("nasaq:updateConfig", (_event, partial: Record<string, unknown>) =>
@@ -149,9 +115,80 @@ app.whenReady().then(async () => {
   ipcMain.handle("app:checkForUpdates", () => checkForUpdates());
   ipcMain.handle("app:downloadUpdate", () => downloadUpdate());
   ipcMain.handle("app:installUpdate", () => installUpdate());
+}
 
-  initAutoUpdater(app.isPackaged);
+function createWindow(): void {
+  const preloadPath = resolvePreloadPath();
+  const indexPath = resolveIndexHtmlPath();
+
+  logStartup(`createWindow preload=${preloadPath} index=${indexPath}`);
+  logStartup(`preload exists=${fs.existsSync(preloadPath)} index exists=${fs.existsSync(indexPath)}`);
+
+  const window = new BrowserWindow({
+    width: 1280,
+    height: 840,
+    minWidth: 960,
+    minHeight: 600,
+    show: false,
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      webSecurity: isDev,
+    },
+  });
+
+  window.once("ready-to-show", () => {
+    window.show();
+  });
+
+  if (isDev) {
+    window.loadURL("http://localhost:5173");
+    window.webContents.openDevTools({ mode: "detach" });
+  } else {
+    window.loadFile(indexPath);
+  }
+
+  window.webContents.on("did-finish-load", () => {
+    logStartup("did-finish-load");
+  });
+
+  window.webContents.on("did-fail-load", (_event, code, description, url) => {
+    const message = `did-fail-load code=${code} desc=${description} url=${url}`;
+    console.error(message);
+    logStartup(message);
+  });
+
+  window.webContents.on("preload-error", (_event, preloadPathArg, error) => {
+    const message = `preload-error path=${preloadPathArg} err=${error.message}`;
+    console.error(message);
+    logStartup(message);
+  });
+
+  mainWindow = window;
+  setUpdateWindow(window);
+
+  window.on("closed", () => {
+    if (mainWindow === window) {
+      mainWindow = null;
+    }
+  });
+}
+
+app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
+  registerIpcHandlers();
   createWindow();
+
+  python.start().catch((error) => {
+    console.error("Failed to start Python sidecar:", error);
+    logStartup(`python start failed: ${String(error)}`);
+  });
+
+  if (app.isPackaged) {
+    initAutoUpdater(true);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

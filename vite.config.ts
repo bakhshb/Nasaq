@@ -7,7 +7,7 @@ function stripCrossoriginForElectron(): Plugin {
     name: "strip-crossorigin-for-electron",
     apply: "build",
     transformIndexHtml(html) {
-      return html.replace(/\s+crossorigin/g, "");
+      return html.replace(/\s+crossorigin/g, "").replace(/type="module"\s+/g, "");
     },
   };
 }
@@ -22,5 +22,13 @@ export default defineConfig({
   build: {
     outDir: "dist",
     modulePreload: false,
+    cssCodeSplit: false,
+    rollupOptions: {
+      output: {
+        format: "iife",
+        entryFileNames: "assets/app.js",
+        inlineDynamicImports: true,
+      },
+    },
   },
 });
