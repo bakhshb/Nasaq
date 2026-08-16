@@ -38,6 +38,7 @@ export default function App() {
 }
 
 function MainApp() {
+  const [rootPath, setRootPath] = useState<string | null>(null);
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [separator, setSeparator] = useState(" - ");
