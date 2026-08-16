@@ -20,8 +20,29 @@ export default function UpdateBanner() {
     return null;
   }
 
-  if (status.phase === "not-available" || status.phase === "checking") {
-    return null;
+  if (status.phase === "checking") {
+    return (
+      <div className="banner update-banner info">
+        <span className="update-text">جاري التحقق من التحديثات…</span>
+      </div>
+    );
+  }
+
+  if (status.phase === "not-available") {
+    const versionLabel = status.version ? `v${status.version}` : "الحالية";
+    return (
+      <div className="banner update-banner info">
+        <span className="update-text">
+          أنت تستخدم أحدث نسخة ({versionLabel}).
+          {status.message ? ` ${status.message}` : ""}
+        </span>
+        <div className="update-actions">
+          <button type="button" className="ghost" onClick={() => setDismissed(true)} aria-label="إغلاق">
+            <CloseIcon />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (status.phase === "error") {
@@ -46,7 +67,7 @@ export default function UpdateBanner() {
         <span className="update-text">يتوفر تحديث v{status.version}</span>
         <div className="update-actions">
           <button type="button" className="primary" onClick={() => window.nasaq.downloadUpdate()}>
-            Download update
+            تنزيل التحديث
           </button>
           <button type="button" className="ghost" onClick={() => setDismissed(true)} aria-label="إغلاق">
             <CloseIcon />

@@ -239,6 +239,7 @@ function MainApp() {
           </div>
         </div>
         <div className="header-actions">
+          {appVersion && <span className="header-version">النسخة {appVersion}</span>}
           <button type="button" className="toolbar-btn" onClick={handleSelectFolder} disabled={loading}>
             <FolderIcon />
             تحديد مجلد
