@@ -2,6 +2,18 @@ import { app } from "electron";
 import fs from "fs";
 import path from "path";
 
+/** Compiled output lives in dist-electron/; this file is in dist-electron/platform/. */
+function getElectronRoot(): string {
+  return path.join(__dirname, "..");
+}
+
+export function getAppRoot(): string {
+  if (app.isPackaged) {
+    return path.dirname(getElectronRoot());
+  }
+  return path.resolve(getElectronRoot(), "..");
+}
+
 export function getUserDataPath(): string {
   return app.getPath("userData");
 }
@@ -24,7 +36,7 @@ export function getPythonSpawnOptions(): { command: string; args: string[]; env:
     return { command: bundledUnix, args: [], env };
   }
 
-  const repoRoot = path.resolve(__dirname, "..", "..");
+  const repoRoot = getAppRoot();
   const devBundledWin = path.join(repoRoot, "build", "nasaq-engine", "nasaq-engine.exe");
   const devBundledUnix = path.join(repoRoot, "build", "nasaq-engine", "nasaq-engine");
   if (!app.isPackaged && fs.existsSync(devBundledUnix)) {
@@ -64,12 +76,12 @@ export function getPythonSpawnOptions(): { command: string; args: string[]; env:
 }
 
 export function resolvePreloadPath(): string {
-  return path.join(__dirname, "preload.js");
+  return path.join(getElectronRoot(), "preload.js");
 }
 
 export function resolveIndexHtml(isDev: boolean): string {
   if (isDev) {
     return "http://localhost:5173";
   }
-  return path.join(__dirname, "../../dist/index.html");
+  return path.join(getAppRoot(), "dist", "index.html");
 }

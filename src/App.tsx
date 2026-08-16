@@ -25,7 +25,19 @@ function toReviewRow(file: AnalyzedFile): ReviewRow {
 }
 
 export default function App() {
-  const [rootPath, setRootPath] = useState<string | null>(null);
+  if (typeof window.nasaq === "undefined") {
+    return (
+      <div className="app">
+        <div className="banner error" style={{ margin: "2rem" }}>
+          Nasaq failed to start (desktop bridge not loaded). Reinstall the app or contact support.
+        </div>
+      </div>
+    );
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [separator, setSeparator] = useState(" - ");

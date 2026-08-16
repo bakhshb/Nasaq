@@ -50,6 +50,14 @@ function createWindow(): void {
     window.loadFile(index);
   }
 
+  window.webContents.on("did-fail-load", (_event, code, description, url) => {
+    console.error("Window failed to load:", code, description, url);
+  });
+
+  window.webContents.on("preload-error", (_event, preloadPath, error) => {
+    console.error("Preload failed:", preloadPath, error);
+  });
+
   mainWindow = window;
   setUpdateWindow(window);
 
