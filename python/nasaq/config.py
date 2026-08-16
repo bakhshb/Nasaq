@@ -20,6 +20,7 @@ DEFAULT_DOCUMENT_TYPES = [
     "دراسة",
     "وثيقة إجراءات",
     "نطاق عمل",
+    "احتياجات الاعمال",
 ]
 
 DEFAULT_DOCUMENT_TYPE_ALIASES = {
@@ -38,6 +39,8 @@ DEFAULT_VERSION_STATUS_KEYWORDS = [
     "مسودة",
     "تحديث",
     "نسخة",
+    "مختصرة",
+    "مفصلة",
 ]
 
 DEFAULT_NOISE_WORDS = [

@@ -121,8 +121,7 @@ def test_structured_name_with_q3_version():
 
 def test_structured_name_in_subfolder():
     config = default_config()
-    config.document_types.append("ادارة المشاريع")
-    name = "احتياجات الاعمال مختصرة - ادارة المشاريع"
+    name = "ادارة المشاريع - احتياجات الاعمال - مختصرة"
     result = analyze_file(
         ScannedFile(
             id="test-id",
@@ -135,15 +134,16 @@ def test_structured_name_in_subfolder():
         config,
     )
 
-    assert result.topic == "احتياجات الاعمال مختصرة"
-    assert result.document_type == "ادارة المشاريع"
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == "مختصرة"
     assert result.proposed_full_name == name + ".pdf"
 
 
-def test_structured_name_with_topic_suffix_after_document_type():
+def test_structured_name_reorders_swapped_topic_and_document_type():
     config = default_config()
-    config.document_types.append("ادارة المشاريع")
     misnamed = "احتياجات الاعمال - ادارة المشاريع - مختصرة"
+    expected = "ادارة المشاريع - احتياجات الاعمال - مختصرة"
     result = analyze_file(
         ScannedFile(
             id="test-id",
@@ -156,7 +156,7 @@ def test_structured_name_with_topic_suffix_after_document_type():
         config,
     )
 
-    assert result.topic == "احتياجات الاعمال مختصرة"
-    assert result.document_type == "ادارة المشاريع"
-    assert result.version_status == ""
-    assert result.proposed_name == "احتياجات الاعمال مختصرة - ادارة المشاريع"
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == "مختصرة"
+    assert result.proposed_name == expected
