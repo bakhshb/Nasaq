@@ -1,6 +1,6 @@
 {
   "name": "nasaq",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Organize and rename work files consistently",
   "main": "dist-electron/main.js",
   "author": "Nasaq",
