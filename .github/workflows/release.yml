@@ -1,22 +1,42 @@
 name: Release
 
-# Triggered automatically after tag-release.yml creates v* on main merge.
+# Manual fallback for publishing an existing tag.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (defaults to package.json version on main)"
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
-  release-windows:
+  publish-release:
     name: Publish Windows release
     runs-on: windows-latest
     timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and checkout release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          git checkout "$TAG"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG}"
 
       - uses: actions/setup-node@v4
         with:
