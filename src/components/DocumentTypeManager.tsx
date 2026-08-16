@@ -38,15 +38,15 @@ export default function DocumentTypeManager({ documentTypes, onClose, onSave }: 
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="modal modal-sm" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <header className="modal-header">
-          <h2>Document types</h2>
-          <button type="button" className="ghost" onClick={onClose}>Close</button>
+          <h2>أنواع المستندات</h2>
+          <button type="button" className="ghost" onClick={onClose}>إغلاق</button>
         </header>
 
         <ul className="type-list">
           {types.map((type) => (
             <li key={type}>
               <span dir="auto">{type}</span>
-              <button type="button" className="ghost" onClick={() => removeType(type)}>Remove</button>
+              <button type="button" className="ghost" onClick={() => removeType(type)}>حذف</button>
             </li>
           ))}
         </ul>
@@ -56,16 +56,16 @@ export default function DocumentTypeManager({ documentTypes, onClose, onSave }: 
             type="text"
             value={newType}
             onChange={(e) => setNewType(e.target.value)}
-            placeholder="New document type"
+            placeholder="نوع مستند جديد"
             dir="auto"
           />
-          <button type="button" onClick={addType}>Add</button>
+          <button type="button" onClick={addType}>إضافة</button>
         </div>
 
         <footer className="modal-footer">
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose}>إلغاء</button>
           <button type="button" className="primary" onClick={handleSave} disabled={saving}>
-            Save
+            حفظ
           </button>
         </footer>
       </div>

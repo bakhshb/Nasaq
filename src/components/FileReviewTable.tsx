@@ -1,5 +1,6 @@
 import { getProposedFullName } from "../lib/buildProposedName";
 import type { ReviewRow } from "../types";
+import { ChevronDownIcon } from "./icons";
 
 interface Props {
   rows: ReviewRow[];
@@ -14,12 +15,12 @@ export default function FileReviewTable({ rows, documentTypes, separator, onUpda
       <table className="review-table">
         <thead>
           <tr>
-            <th className="col-select">Select</th>
-            <th>Current filename</th>
-            <th>Document type</th>
-            <th>Topic</th>
-            <th>Version / Status</th>
-            <th>Proposed filename</th>
+            <th className="col-select">تحديد</th>
+            <th>اسم الملف الحالي</th>
+            <th>نوع المستند</th>
+            <th>الموضوع</th>
+            <th>الإصدار/الحالة</th>
+            <th>اسم الملف المقترح</th>
           </tr>
         </thead>
         <tbody>
@@ -92,20 +93,21 @@ function DocumentTypeCell({
 }) {
   const datalistId = `doc-types-${rowId}`;
   return (
-    <>
+    <div className="cell-input-wrap">
       <input
-        className="cell-input"
+        className="cell-input with-chevron"
         type="text"
         list={datalistId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         dir="auto"
       />
+      <ChevronDownIcon className="cell-chevron" />
       <datalist id={datalistId}>
         {options.map((opt) => (
           <option key={opt} value={opt} />
         ))}
       </datalist>
-    </>
+    </div>
   );
 }

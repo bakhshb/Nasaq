@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import AppIcon from "./components/AppIcon";
 import DocumentTypeManager from "./components/DocumentTypeManager";
 import FileReviewTable from "./components/FileReviewTable";
+import {
+  CloudDownloadIcon,
+  DocumentIcon,
+  FolderIcon,
+  RefreshIcon,
+  UndoIcon,
+} from "./components/icons";
 import PreviewDialog from "./components/PreviewDialog";
 import UpdateBanner from "./components/UpdateBanner";
 import { getProposedFullName } from "./lib/buildProposedName";
@@ -29,7 +37,7 @@ export default function App() {
     return (
       <div className="app">
         <div className="banner error" style={{ margin: "2rem" }}>
-          Nasaq failed to start (desktop bridge not loaded). Reinstall the app or contact support.
+          تعذّر تشغيل نسق (لم يتم تحميل جسر سطح المكتب). أعد تثبيت التطبيق أو تواصل مع الدعم.
         </div>
       </div>
     );
@@ -49,6 +57,7 @@ function MainApp() {
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState("");
 
   const loadConfig = useCallback(async () => {
     const data = await window.nasaq.getConfig();
@@ -60,6 +69,7 @@ function MainApp() {
   useEffect(() => {
     loadConfig().catch((err) => setError(String(err)));
     window.nasaq.canUndo().then(setCanUndo).catch(() => undefined);
+    window.nasaq.getVersion().then(setAppVersion).catch(() => undefined);
   }, [loadConfig]);
 
   const scanFolder = useCallback(
@@ -105,7 +115,7 @@ function MainApp() {
 
   const handleApplyClick = () => {
     if (selectedCount === 0) {
-      setError("Select at least one file to rename.");
+      setError("حدّد ملفًا واحدًا على الأقل لإعادة التسمية.");
       return;
     }
     setShowPreview(true);
@@ -123,7 +133,7 @@ function MainApp() {
       }));
 
       const result = await window.nasaq.renameBatch({ rootPath, items });
-      setStatusMessage(`Renamed ${result.count} file(s).`);
+      setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
       setShowPreview(false);
       setCanUndo(true);
       await scanFolder(rootPath);
@@ -140,7 +150,7 @@ function MainApp() {
     try {
       const result = await window.nasaq.undoLastRename();
       if (result.undone) {
-        setStatusMessage(`Undo complete (${result.count ?? 0} file(s)).`);
+        setStatusMessage(`تم التراجع (${result.count ?? 0} ملف).`);
         setCanUndo(await window.nasaq.canUndo());
         if (rootPath) {
           await scanFolder(rootPath);
@@ -164,25 +174,33 @@ function MainApp() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="header-title">
-          <h1>Nasaq</h1>
-          <p className="subtitle">Organize work filenames consistently</p>
+        <div className="brand">
+          <AppIcon size={44} />
+          <div className="brand-text">
+            <h1>Nasaq</h1>
+            <p className="subtitle">Organize work filenames consistently</p>
+          </div>
         </div>
         <div className="header-actions">
-          <button type="button" onClick={handleSelectFolder} disabled={loading}>
-            Select folder
+          <button type="button" className="toolbar-btn" onClick={handleSelectFolder} disabled={loading}>
+            <FolderIcon />
+            تحديد مجلد
           </button>
-          <button type="button" onClick={handleRescan} disabled={!rootPath || loading}>
-            Rescan
+          <button type="button" className="toolbar-btn" onClick={handleRescan} disabled={!rootPath || loading}>
+            <RefreshIcon />
+            إعادة المسح
           </button>
-          <button type="button" onClick={() => setShowTypeManager(true)} disabled={loading}>
-            Document types
+          <button type="button" className="toolbar-btn" onClick={() => setShowTypeManager(true)} disabled={loading}>
+            <DocumentIcon />
+            أنواع المستندات
           </button>
-          <button type="button" onClick={() => window.nasaq.checkForUpdates()} disabled={loading}>
-            Check for updates
+          <button type="button" className="toolbar-btn" onClick={() => window.nasaq.checkForUpdates()} disabled={loading}>
+            <CloudDownloadIcon />
+            التحقق من التحديثات
           </button>
-          <button type="button" onClick={handleUndo} disabled={!canUndo || loading}>
-            Undo last rename
+          <button type="button" className="toolbar-btn" onClick={handleUndo} disabled={!canUndo || loading}>
+            <UndoIcon />
+            التراجع عن آخر تغيير اسم
           </button>
         </div>
       </header>
@@ -196,11 +214,23 @@ function MainApp() {
             checked={recursive}
             onChange={(e) => setRecursive(e.target.checked)}
           />
-          Scan subfolders
+          مسح المجلدات الفرعية
         </label>
-        <span className="folder-path" dir="ltr">
-          {rootPath ? rootPath : "No folder selected"}
-        </span>
+        <div className="folder-path-wrap">
+          <span className="folder-path" dir="ltr">
+            {rootPath ? rootPath : "لم يتم تحديد مجلد"}
+          </span>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={handleSelectFolder}
+            disabled={loading}
+            aria-label="تحديد مجلد"
+            title="تحديد مجلد"
+          >
+            <FolderIcon />
+          </button>
+        </div>
       </section>
 
       {error && (
@@ -209,12 +239,12 @@ function MainApp() {
         </div>
       )}
       {statusMessage && <div className="banner success">{statusMessage}</div>}
-      {loading && <div className="banner info">Working…</div>}
+      {loading && <div className="banner info">جاري العمل…</div>}
 
       <main className="main-content">
         {rows.length === 0 ? (
           <div className="empty-state">
-            <p>Select a folder to scan files and review proposed names.</p>
+            <p>حدّد مجلدًا لمسح الملفات ومراجعة الأسماء المقترحة.</p>
           </div>
         ) : (
           <FileReviewTable
@@ -227,7 +257,10 @@ function MainApp() {
       </main>
 
       <footer className="app-footer">
-        <span>{selectedCount} selected</span>
+        <div className="footer-meta">
+          <span className="footer-selection">{selectedCount} selected</span>
+          {appVersion && <span className="footer-version">v{appVersion}</span>}
+        </div>
         <button
           type="button"
           className="primary"

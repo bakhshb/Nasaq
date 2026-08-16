@@ -58,19 +58,19 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
         onClick={(e) => e.stopPropagation()}
       >
         <header className="modal-header">
-          <h2 id="preview-title">Preview renames</h2>
-          <button type="button" className="ghost" onClick={onClose}>Close</button>
+          <h2 id="preview-title">معاينة إعادة التسمية</h2>
+          <button type="button" className="ghost" onClick={onClose}>إغلاق</button>
         </header>
 
         <p className="modal-note">
-          {rows.length} file(s) will be renamed. Nothing is changed until you confirm.
+          سيتم إعادة تسمية {rows.length} ملف. لن يتم تغيير أي شيء حتى تؤكد.
         </p>
 
-        {loading && <p className="modal-note">Validating…</p>}
+        {loading && <p className="modal-note">جاري التحقق…</p>}
 
         {issues.length > 0 && (
           <div className="validation-issues">
-            <strong>Validation issues</strong>
+            <strong>مشكلات التحقق</strong>
             <ul>
               {issues.map((issue, index) => (
                 <li key={`${issue.fileId}-${issue.code}-${index}`}>
@@ -85,9 +85,9 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
           <table className="preview-table">
             <thead>
               <tr>
-                <th>Current</th>
+                <th>الحالي</th>
                 <th>→</th>
-                <th>New</th>
+                <th>الجديد</th>
               </tr>
             </thead>
             <tbody>
@@ -111,14 +111,14 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
         </div>
 
         <footer className="modal-footer">
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose}>إلغاء</button>
           <button
             type="button"
             className="primary"
             onClick={onConfirm}
             disabled={loading || issues.some((i) => i.code === "duplicate_proposed_name" || i.code === "invalid_windows_chars")}
           >
-            Confirm rename
+            تأكيد إعادة التسمية
           </button>
         </footer>
       </div>

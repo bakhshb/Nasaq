@@ -167,6 +167,22 @@ function attachRendererLogging(window: BrowserWindow): void {
   });
 }
 
+function resolveIconPath(): string | undefined {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, "ui", "icon.png")]
+    : [
+        path.join(__dirname, "..", "installer", "icon.png"),
+        path.join(__dirname, "..", "public", "icon.png"),
+      ];
+
+  for (const iconPath of candidates) {
+    if (fs.existsSync(iconPath)) {
+      return iconPath;
+    }
+  }
+  return undefined;
+}
+
 function createWindow(): void {
   const preloadPath = resolvePreloadPath();
   const indexPath = resolveIndexHtmlPath();
@@ -188,6 +204,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     show: false,
+    icon: resolveIconPath(),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
