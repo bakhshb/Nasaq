@@ -41,6 +41,10 @@ def try_parse_structured_name(
             return None
         return topic, "", version
 
+    middle_type_match = _try_middle_document_type(body, document_types, aliases)
+    if middle_type_match:
+        return middle_type_match[0], middle_type_match[1], version
+
     potential_type = body[-1]
     topic = separator.join(body[:-1]).strip()
     if not topic:
@@ -51,6 +55,27 @@ def try_parse_structured_name(
         document_type = potential_type
 
     return topic, document_type, version
+
+
+def _try_middle_document_type(
+    body: list[str],
+    document_types: list[str],
+    aliases: dict[str, str],
+) -> tuple[str, str] | None:
+    """Handle topic - document_type - topic_suffix when the suffix is not a version."""
+    if len(body) != 3:
+        return None
+
+    first, middle, last = body
+    document_type = _match_doc_type_segment(middle, document_types, aliases)
+    if not document_type:
+        return None
+
+    topic_parts = [part.strip() for part in (first, last) if part.strip()]
+    if not topic_parts:
+        return None
+
+    return " ".join(topic_parts), document_type
 
 
 def _segment_is_version(segment: str, version_keywords: list[str]) -> bool:
