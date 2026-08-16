@@ -204,3 +204,14 @@ def test_structured_name_with_review_and_arabic_month():
     assert result.document_type == "تقرير"
     assert result.version_status == "مراجعة 2 اغسطس"
     assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_with_final_version_phrase():
+    config = default_config()
+    name = "نظام انجاز تنفيذي - تقرير - النسخة النهائية"
+    result = analyze_file(_scanned(name + ".pdf"), config)
+
+    assert result.topic == "نظام انجاز تنفيذي"
+    assert result.document_type == "تقرير"
+    assert result.version_status == "النسخة النهائية"
+    assert result.proposed_full_name == name + ".pdf"
