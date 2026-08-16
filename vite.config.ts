@@ -6,10 +6,21 @@ function stripCrossoriginForElectron(): Plugin {
   return {
     name: "strip-crossorigin-for-electron",
     apply: "build",
+    enforce: "post",
     transformIndexHtml(html) {
-      const withoutCrossorigin = html.replace(/\s+crossorigin/g, "").replace(/type="module"\s+/g, "");
-      if (withoutCrossorigin.includes("</body>")) {
-        return withoutCrossorigin.replace(
+      let output = html.replace(/\s+crossorigin/g, "").replace(/type="module"\s+/g, "");
+
+      const scriptMatch = output.match(/<script[^>]*src="[^"]*app\.js"[^>]*><\/script>/);
+      if (scriptMatch) {
+        const scriptTag = scriptMatch[0].includes("defer")
+          ? scriptMatch[0]
+          : scriptMatch[0].replace("<script", "<script defer");
+        output = output.replace(scriptMatch[0], "");
+        output = output.replace("</body>", `${scriptTag}\n</body>`);
+      }
+
+      if (output.includes("</body>")) {
+        return output.replace(
           "</body>",
           `<script>
             window.addEventListener('error', function(e) {
@@ -19,7 +30,7 @@ function stripCrossoriginForElectron(): Plugin {
           </script></body>`,
         );
       }
-      return withoutCrossorigin;
+      return output;
     },
   };
 }
