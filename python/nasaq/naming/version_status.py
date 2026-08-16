@@ -12,9 +12,10 @@ _DATE_ISO = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 _DATE_SLASH = re.compile(r"\b(\d{4}/\d{2}/\d{2})\b")
 _DATE_DMY = re.compile(r"\b(\d{2}-\d{2}-\d{4})\b")
 _QUARTER = re.compile(r"\b(Q[1-4]\s+\d{4})\b", re.IGNORECASE)
+_QUARTER_SHORT = re.compile(r"\b(Q[1-4])\b", re.IGNORECASE)
 _VERSION_V = re.compile(r"\b(V\d+)\b", re.IGNORECASE)
 _VERSION_NUM = re.compile(r"(?:نسخة\s*)?(\d+)\s*$")
-_VERSION_END = re.compile(r"\b(V\d+|\d+)\s*$", re.IGNORECASE)
+_VERSION_END = re.compile(r"\b(V\d+|Q[1-4]|\d+)\s*$", re.IGNORECASE)
 
 
 @dataclass
@@ -41,10 +42,13 @@ def match_version_status(
         (_DATE_DMY, "date"),
         (_QUARTER, "date"),
         (_VERSION_V, "version"),
+        (_QUARTER_SHORT, "version"),
     ):
         match = pattern.search(raw)
         if match:
             value = match.group(1)
+            if kind == "version" and _QUARTER_SHORT.fullmatch(value):
+                value = value.upper()
             return VersionStatusMatch(
                 value=value,
                 matched_text=value,
@@ -62,9 +66,10 @@ def match_version_status(
     end_match = _VERSION_END.search(normalized)
     if end_match:
         value = end_match.group(1)
-        if value.upper().startswith("V") or value.isdigit():
+        if value.upper().startswith("V") or value.upper().startswith("Q") or value.isdigit():
+            normalized_value = value.upper() if value.upper().startswith(("V", "Q")) else value
             return VersionStatusMatch(
-                value=value.upper() if value.upper().startswith("V") else value,
+                value=normalized_value,
                 matched_text=value,
                 confidence=0.75,
                 kind="version",

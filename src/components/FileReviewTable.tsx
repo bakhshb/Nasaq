@@ -17,7 +17,7 @@ const MANUAL_OPTION = "__manual__";
 export default function FileReviewTable({ rows, documentTypes, separator, filter, onUpdateRow }: Props) {
   const rowsWithStatus = rows.map((row) => ({
     row,
-    status: getFileRenameStatus(row),
+    status: getFileRenameStatus(row, separator),
     proposed: getProposedFullName(
       row.topic,
       row.documentType,
