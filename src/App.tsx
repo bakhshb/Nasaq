@@ -262,7 +262,7 @@ function MainApp() {
             disabled={!canUndo || loading}
             title="التراجع عن آخر تغيير اسم"
           >
-            <UndoIcon size={22} />
+            <UndoIcon size={20} />
             <span>تراجع</span>
           </button>
         </div>
