@@ -15,7 +15,15 @@ export interface NasaqApi {
   selectFolder: () => Promise<string | null>;
   renameBatch: (payload: {
     rootPath: string;
-    items: Array<{ id: string; absolutePath: string; proposedFullName: string }>;
+    items: Array<{
+      id: string;
+      absolutePath: string;
+      proposedFullName: string;
+      topic: string;
+      documentType: string;
+      versionStatus: string;
+      relativePath: string;
+    }>;
   }) => Promise<{ batchId: string; count: number }>;
   undoLastRename: () => Promise<{ undone: boolean; count?: number; batchId?: string }>;
   canUndo: () => Promise<boolean>;
@@ -52,7 +60,11 @@ const api: NasaqApi = {
     }>,
   canUndo: () => ipcRenderer.invoke("fs:canUndo") as Promise<boolean>,
   getPaths: () =>
-    ipcRenderer.invoke("app:getPaths") as Promise<{ userData: string; configPath: string }>,
+    ipcRenderer.invoke("app:getPaths") as Promise<{
+      userData: string;
+      configPath: string;
+      approvedNamesPath: string;
+    }>,
   getVersion: () => ipcRenderer.invoke("app:getVersion") as Promise<string>,
   checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates") as Promise<void>,
   downloadUpdate: () => ipcRenderer.invoke("app:downloadUpdate") as Promise<void>,

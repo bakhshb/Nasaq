@@ -95,11 +95,19 @@ declare global {
       selectFolder: () => Promise<string | null>;
       renameBatch: (payload: {
         rootPath: string;
-        items: Array<{ id: string; absolutePath: string; proposedFullName: string }>;
+        items: Array<{
+          id: string;
+          absolutePath: string;
+          proposedFullName: string;
+          topic: string;
+          documentType: string;
+          versionStatus: string;
+          relativePath: string;
+        }>;
       }) => Promise<{ batchId: string; count: number }>;
       undoLastRename: () => Promise<{ undone: boolean; count?: number }>;
       canUndo: () => Promise<boolean>;
-      getPaths: () => Promise<{ userData: string; configPath: string }>;
+      getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string }>;
       getVersion: () => Promise<string>;
       checkForUpdates: () => Promise<void>;
       downloadUpdate: () => Promise<void>;

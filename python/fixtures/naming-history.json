@@ -97,7 +97,8 @@
           "versionStatus": "رد على فريق العمل الدائم"
         },
         "renamedTo": "مركز التفويج - عرض تقديمي - رد على فريق العمل الدائم.pptx",
-        "statusAfterRescan": "organized"
+        "statusAfterRescan": "organized",
+        "persistedIn": "approved-names.json"
       }
     },
     {
