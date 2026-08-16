@@ -138,6 +138,20 @@ button.toolbar-btn svg {
   flex-shrink: 0;
 }
 
+button.toolbar-btn-icon {
+  padding: 0.5rem;
+  min-width: 2.4rem;
+  justify-content: center;
+}
+
+button.toolbar-btn-icon svg {
+  color: var(--text);
+}
+
+button.toolbar-btn-icon:disabled svg {
+  color: var(--muted);
+}
+
 button.icon-btn {
   padding: 0.45rem;
   border-radius: var(--radius-sm);
@@ -341,6 +355,33 @@ button.icon-btn {
 
 .cell-input-datalist::-webkit-list-button {
   display: none;
+}
+
+.cell-select {
+  cursor: pointer;
+  padding-inline-end: 1.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='m6 9 6 6 6-6' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 0.55rem center;
+  appearance: none;
+}
+
+.cell-combo {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.cell-combo .cell-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell-combo-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .cell-input:focus {

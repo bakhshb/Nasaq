@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+
 import { getProposedFullName } from "../lib/buildProposedName";
 import { getFileRenameStatus, type FileFilter } from "../lib/fileStatus";
 import type { ReviewRow } from "../types";
@@ -10,17 +12,12 @@ interface Props {
   onUpdateRow: (id: string, patch: Partial<ReviewRow>) => void;
 }
 
+const MANUAL_OPTION = "__manual__";
+
 export default function FileReviewTable({ rows, documentTypes, separator, filter, onUpdateRow }: Props) {
   const rowsWithStatus = rows.map((row) => ({
     row,
-    status: getFileRenameStatus(
-      row.currentFullName,
-      row.topic,
-      row.documentType,
-      row.versionStatus,
-      row.extension,
-      separator,
-    ),
+    status: getFileRenameStatus(row.currentFullName, row.scannedProposedFullName),
     proposed: getProposedFullName(
       row.topic,
       row.documentType,
@@ -87,7 +84,7 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
                   </td>
                   <td>
                     <DocumentTypeCell
-                      rowId={row.id}
+                      key={row.id}
                       value={row.documentType}
                       options={documentTypes}
                       onChange={(value) => onUpdateRow(row.id, { documentType: value })}
@@ -123,32 +120,74 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
 }
 
 function DocumentTypeCell({
-  rowId,
   value,
   options,
   onChange,
 }: {
-  rowId: string;
   value: string;
   options: string[];
   onChange: (value: string) => void;
 }) {
-  const datalistId = `doc-types-${rowId}`;
+  const startsInManual = value !== "" && !options.includes(value);
+  const [manualMode, setManualMode] = useState(startsInManual);
+
+  const selectValue = useMemo(() => {
+    if (options.includes(value)) {
+      return value;
+    }
+    return "";
+  }, [options, value]);
+
+  if (manualMode) {
+    return (
+      <div className="cell-combo">
+        <input
+          className="cell-input"
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          dir="auto"
+          placeholder="اكتب نوع المستند"
+        />
+        <button
+          type="button"
+          className="cell-combo-btn"
+          onClick={() => {
+            setManualMode(false);
+            if (!options.includes(value)) {
+              onChange("");
+            }
+          }}
+          title="اختيار من القائمة"
+        >
+          قائمة
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <input
-        className="cell-input cell-input-datalist"
-        type="text"
-        list={datalistId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        dir="auto"
-      />
-      <datalist id={datalistId}>
-        {options.map((opt) => (
-          <option key={opt} value={opt} />
-        ))}
-      </datalist>
-    </>
+    <select
+      className="cell-input cell-select"
+      value={selectValue}
+      onChange={(e) => {
+        const next = e.target.value;
+        if (next === MANUAL_OPTION) {
+          setManualMode(true);
+          onChange("");
+          return;
+        }
+        onChange(next);
+      }}
+      dir="auto"
+    >
+      <option value="">— اختر —</option>
+      {options.map((opt) => (
+        <option key={opt} value={opt}>
+          {opt}
+        </option>
+      ))}
+      <option value={MANUAL_OPTION}>كتابة يدوية...</option>
+    </select>
   );
 }

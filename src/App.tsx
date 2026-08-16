@@ -28,6 +28,7 @@ function toReviewRow(file: AnalyzedFile): ReviewRow {
     documentType: file.documentType,
     topic: file.topic,
     versionStatus: file.versionStatus,
+    scannedProposedFullName: file.proposedFullName,
     selected: false,
     warnings: file.warnings ?? [],
   };
@@ -119,14 +120,7 @@ function MainApp() {
     let organized = 0;
     let needsRename = 0;
     for (const row of rows) {
-      const status = getFileRenameStatus(
-        row.currentFullName,
-        row.topic,
-        row.documentType,
-        row.versionStatus,
-        row.extension,
-        separator,
-      );
+      const status = getFileRenameStatus(row.currentFullName, row.scannedProposedFullName);
       if (status === "organized") {
         organized += 1;
       } else {
@@ -134,21 +128,13 @@ function MainApp() {
       }
     }
     return { organized, needsRename };
-  }, [rows, separator]);
+  }, [rows]);
 
   const handleSelectRemaining = () => {
     setRows((prev) =>
       prev.map((row) => ({
         ...row,
-        selected:
-          getFileRenameStatus(
-            row.currentFullName,
-            row.topic,
-            row.documentType,
-            row.versionStatus,
-            row.extension,
-            separator,
-          ) === "needs_rename",
+        selected: getFileRenameStatus(row.currentFullName, row.scannedProposedFullName) === "needs_rename",
       })),
     );
   };
@@ -218,7 +204,7 @@ function MainApp() {
           <AppIcon size={44} />
           <div className="brand-text">
             <h1>Nasaq</h1>
-            <p className="subtitle">Organize work filenames consistently</p>
+            <p className="subtitle">تنظيم أسماء ملفات العمل بشكل متسق</p>
           </div>
         </div>
         <div className="header-actions">
@@ -240,13 +226,13 @@ function MainApp() {
           </button>
           <button
             type="button"
-            className="toolbar-btn"
+            className="toolbar-btn toolbar-btn-icon"
             onClick={handleUndo}
             disabled={!canUndo || loading}
+            aria-label="التراجع عن آخر تغيير اسم"
             title="التراجع عن آخر تغيير اسم"
           >
-            <UndoIcon />
-            تراجع
+            <UndoIcon size={20} />
           </button>
         </div>
       </header>

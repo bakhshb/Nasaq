@@ -44,6 +44,7 @@ export interface ReviewRow {
   documentType: string;
   topic: string;
   versionStatus: string;
+  scannedProposedFullName: string;
   selected: boolean;
   warnings: string[];
 }
