@@ -106,3 +106,35 @@ def test_build_proposed_name_optional_third_part():
 
 def test_normalize_collapses_separators():
     assert normalize_text("topic - type - status") == "topic type status"
+
+
+def test_structured_name_with_q3_version():
+    config = default_config()
+    name = "مكتب إدارة المشاريع و التوعية والتدريب - تقرير - Q3"
+    result = analyze_file(_scanned(name + ".pdf", folder="ادارة المشاريع"), config)
+
+    assert result.topic == "مكتب إدارة المشاريع و التوعية والتدريب"
+    assert result.document_type == "تقرير"
+    assert result.version_status == "Q3"
+    assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_in_subfolder():
+    config = default_config()
+    config.document_types.append("ادارة المشاريع")
+    name = "احتياجات الاعمال مختصرة - ادارة المشاريع"
+    result = analyze_file(
+        ScannedFile(
+            id="test-id",
+            absolute_path=f"/tmp/work/sub/{name}.pdf",
+            relative_path=f"sub/{name}.pdf",
+            extension=".pdf",
+            current_name=name,
+            folder_name="ادارة المشاريع",
+        ),
+        config,
+    )
+
+    assert result.topic == "احتياجات الاعمال مختصرة"
+    assert result.document_type == "ادارة المشاريع"
+    assert result.proposed_full_name == name + ".pdf"
