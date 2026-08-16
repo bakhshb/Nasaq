@@ -237,13 +237,13 @@ function MainApp() {
           </button>
           <button
             type="button"
-            className="toolbar-btn toolbar-btn-icon"
+            className="toolbar-btn toolbar-btn-undo"
             onClick={handleUndo}
             disabled={!canUndo || loading}
-            aria-label="التراجع عن آخر تغيير اسم"
             title="التراجع عن آخر تغيير اسم"
           >
-            <UndoIcon size={20} />
+            <UndoIcon size={22} />
+            <span>تراجع</span>
           </button>
         </div>
       </header>
