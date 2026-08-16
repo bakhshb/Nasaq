@@ -190,10 +190,9 @@ button.ghost {
 }
 
 .cell-filename {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 280px;
+  word-break: break-word;
+  unicode-bidi: plaintext;
 }
 
 .cell-proposed {
