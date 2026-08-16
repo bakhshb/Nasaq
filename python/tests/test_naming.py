@@ -160,3 +160,36 @@ def test_structured_name_reorders_swapped_topic_and_document_type():
     assert result.document_type == "احتياجات الاعمال"
     assert result.version_status == "مختصرة"
     assert result.proposed_name == expected
+
+
+@pytest.mark.parametrize(
+    ("status",),
+    [
+        ("مستلمة",),
+        ("مستملة",),
+        ("رد",),
+        ("مرسلة",),
+        ("مصدرة",),
+        ("مرسلة 28-08-2026",),
+        ("مرسلة 28/08/2026",),
+    ],
+)
+def test_structured_name_with_document_status_keywords(status: str):
+    config = default_config()
+    name = f"ادارة المشاريع - احتياجات الاعمال - {status}"
+    result = analyze_file(
+        ScannedFile(
+            id="test-id",
+            absolute_path=f"/tmp/work/sub/{name}.pdf",
+            relative_path=f"sub/{name}.pdf",
+            extension=".pdf",
+            current_name=name,
+            folder_name="ادارة المشاريع",
+        ),
+        config,
+    )
+
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == status
+    assert result.proposed_full_name == name + ".pdf"
