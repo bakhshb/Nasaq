@@ -162,6 +162,28 @@ def test_structured_name_reorders_swapped_topic_and_document_type():
     assert result.proposed_name == expected
 
 
+def test_structured_name_reorders_swapped_segments_without_folder_hint():
+    config = default_config()
+    misnamed = "احتياجات الاعمال - ادارة المشاريع - مختصرة"
+    expected = "ادارة المشاريع - احتياجات الاعمال - مختصرة"
+    result = analyze_file(
+        ScannedFile(
+            id="test-id",
+            absolute_path=f"/tmp/work/{misnamed}.pdf",
+            relative_path=f"{misnamed}.pdf",
+            extension=".pdf",
+            current_name=misnamed,
+            folder_name="",
+        ),
+        config,
+    )
+
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == "مختصرة"
+    assert result.proposed_name == expected
+
+
 @pytest.mark.parametrize(
     ("status",),
     [

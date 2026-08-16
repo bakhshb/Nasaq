@@ -41,16 +41,47 @@ def try_parse_structured_name(
             return None
         return topic, "", version
 
-    potential_type = body[-1]
-    topic = separator.join(body[:-1]).strip()
+    topic, document_type = _resolve_topic_and_document_type(
+        body,
+        separator,
+        document_types,
+        aliases,
+    )
     if not topic:
         return None
 
+    return topic, document_type, version
+
+
+def _resolve_topic_and_document_type(
+    body: list[str],
+    separator: str,
+    document_types: list[str],
+    aliases: dict[str, str],
+) -> tuple[str, str]:
+    if len(body) == 1:
+        return body[0], ""
+
+    if len(body) == 2:
+        first, second = body
+        first_type = _match_doc_type_segment(first, document_types, aliases)
+        second_type = _match_doc_type_segment(second, document_types, aliases)
+
+        if first_type and not second_type:
+            return second, first_type
+        if second_type and not first_type:
+            return first, second_type
+
+        document_type = second_type or second
+        return first, document_type
+
+    potential_type = body[-1]
+    topic = separator.join(body[:-1]).strip()
     document_type = _match_doc_type_segment(potential_type, document_types, aliases)
     if not document_type:
         document_type = potential_type
 
-    return topic, document_type, version
+    return topic, document_type
 
 
 def _segment_is_version(segment: str, version_keywords: list[str]) -> bool:
