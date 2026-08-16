@@ -32,7 +32,7 @@ def try_parse_structured_name(
     body = list(parts)
 
     if len(body) >= 3 and _segment_is_version(body[-1], version_keywords):
-        version = _normalize_version_segment(body[-1])
+        version = _normalize_version_segment(body[-1], version_keywords)
         body = body[:-1]
 
     if len(body) < 2:
@@ -62,11 +62,11 @@ def _segment_is_version(segment: str, version_keywords: list[str]) -> bool:
     return _QUARTER_SHORT.fullmatch(text) is not None
 
 
-def _normalize_version_segment(segment: str) -> str:
+def _normalize_version_segment(segment: str, version_keywords: list[str]) -> str:
     text = segment.strip()
     if _QUARTER_SHORT.fullmatch(text):
         return text.upper()
-    match = match_version_status(text, [])
+    match = match_version_status(text, version_keywords)
     if match:
         return match.value
     return text

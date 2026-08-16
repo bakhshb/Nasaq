@@ -5,7 +5,7 @@ from __future__ import annotations
 from nasaq.models import AppConfig, AnalysisResult, ConfidenceScores, ScannedFile
 from nasaq.naming.builder import build_proposed_full_name, build_proposed_name
 from nasaq.naming.doc_type import match_document_type, remove_document_type
-from nasaq.naming.normalize import normalize_text
+from nasaq.naming.normalize import normalize_for_match, normalize_text
 from nasaq.naming.structured import try_parse_structured_name
 from nasaq.naming.topic import extract_topic
 from nasaq.naming.version_status import match_version_status, remove_version_status
@@ -24,6 +24,11 @@ def analyze_file(scanned: ScannedFile, config: AppConfig) -> AnalysisResult:
 
     if structured:
         topic, document_type, version_status = structured
+        topic, document_type = _align_topic_with_folder(
+            topic,
+            document_type,
+            scanned.folder_name,
+        )
         doc_confidence = 0.95 if document_type else 0.2
         topic_confidence = 0.95 if topic else 0.2
         vs_confidence = 0.9 if version_status else 0.0
@@ -146,3 +151,19 @@ def _overall_confidence(
     if vs_confidence > 0:
         return (doc_confidence * 0.35 + topic_confidence * 0.45 + vs_confidence * 0.2)
     return (doc_confidence * 0.4 + topic_confidence * 0.6)
+
+
+def _align_topic_with_folder(topic: str, document_type: str, folder_name: str) -> tuple[str, str]:
+    """Swap topic and document type when the folder matches the parsed document type."""
+    folder = normalize_text(folder_name)
+    if not folder or not topic or not document_type:
+        return topic, document_type
+
+    folder_key = normalize_for_match(folder)
+    topic_key = normalize_for_match(topic)
+    document_type_key = normalize_for_match(document_type)
+
+    if folder_key == document_type_key and folder_key != topic_key:
+        return document_type, topic
+
+    return topic, document_type

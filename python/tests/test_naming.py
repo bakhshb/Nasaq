@@ -121,8 +121,7 @@ def test_structured_name_with_q3_version():
 
 def test_structured_name_in_subfolder():
     config = default_config()
-    config.document_types.append("ادارة المشاريع")
-    name = "احتياجات الاعمال مختصرة - ادارة المشاريع"
+    name = "ادارة المشاريع - احتياجات الاعمال - مختصرة"
     result = analyze_file(
         ScannedFile(
             id="test-id",
@@ -135,6 +134,84 @@ def test_structured_name_in_subfolder():
         config,
     )
 
-    assert result.topic == "احتياجات الاعمال مختصرة"
-    assert result.document_type == "ادارة المشاريع"
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == "مختصرة"
+    assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_reorders_swapped_topic_and_document_type():
+    config = default_config()
+    misnamed = "احتياجات الاعمال - ادارة المشاريع - مختصرة"
+    expected = "ادارة المشاريع - احتياجات الاعمال - مختصرة"
+    result = analyze_file(
+        ScannedFile(
+            id="test-id",
+            absolute_path=f"/tmp/work/sub/{misnamed}.pdf",
+            relative_path=f"sub/{misnamed}.pdf",
+            extension=".pdf",
+            current_name=misnamed,
+            folder_name="ادارة المشاريع",
+        ),
+        config,
+    )
+
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == "مختصرة"
+    assert result.proposed_name == expected
+
+
+@pytest.mark.parametrize(
+    ("status",),
+    [
+        ("مستلمة",),
+        ("مستملة",),
+        ("رد",),
+        ("مرسلة",),
+        ("مصدرة",),
+        ("مرسلة 28-08-2026",),
+        ("مرسلة 28/08/2026",),
+    ],
+)
+def test_structured_name_with_document_status_keywords(status: str):
+    config = default_config()
+    name = f"ادارة المشاريع - احتياجات الاعمال - {status}"
+    result = analyze_file(
+        ScannedFile(
+            id="test-id",
+            absolute_path=f"/tmp/work/sub/{name}.pdf",
+            relative_path=f"sub/{name}.pdf",
+            extension=".pdf",
+            current_name=name,
+            folder_name="ادارة المشاريع",
+        ),
+        config,
+    )
+
+    assert result.topic == "ادارة المشاريع"
+    assert result.document_type == "احتياجات الاعمال"
+    assert result.version_status == status
+    assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_with_review_and_arabic_month():
+    config = default_config()
+    name = "نظام انجاز تنفيذي - تقرير - مراجعة 2 اغسطس"
+    result = analyze_file(_scanned(name + ".pdf"), config)
+
+    assert result.topic == "نظام انجاز تنفيذي"
+    assert result.document_type == "تقرير"
+    assert result.version_status == "مراجعة 2 اغسطس"
+    assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_with_final_version_phrase():
+    config = default_config()
+    name = "نظام انجاز تنفيذي - تقرير - النسخة النهائية"
+    result = analyze_file(_scanned(name + ".pdf"), config)
+
+    assert result.topic == "نظام انجاز تنفيذي"
+    assert result.document_type == "تقرير"
+    assert result.version_status == "النسخة النهائية"
     assert result.proposed_full_name == name + ".pdf"

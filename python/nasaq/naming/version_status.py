@@ -11,6 +11,32 @@ from nasaq.naming.normalize import normalize_for_match, normalize_text
 _DATE_ISO = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
 _DATE_SLASH = re.compile(r"\b(\d{4}/\d{2}/\d{2})\b")
 _DATE_DMY = re.compile(r"\b(\d{2}-\d{2}-\d{4})\b")
+_DATE_DMY_SLASH = re.compile(r"\b(\d{2}/\d{2}/\d{4})\b")
+_DATE_TAIL_PATTERNS = (
+    r"(\d{4}-\d{2}-\d{2})",
+    r"(\d{4}/\d{2}/\d{2})",
+    r"(\d{2}-\d{2}-\d{4})",
+    r"(\d{2}/\d{2}/\d{4})",
+)
+_ARABIC_MONTHS = (
+    r"يناير",
+    r"فبراير",
+    r"مارس",
+    r"[اأ]بريل",
+    r"مايو",
+    r"يونيو",
+    r"يوليو",
+    r"[اأ]غسطس",
+    r"سبتمبر",
+    r"[اأ]كتوبر",
+    r"نوفمبر",
+    r"ديسمبر",
+)
+_ARABIC_MONTH_PATTERN = "(?:" + "|".join(_ARABIC_MONTHS) + ")"
+_KEYWORD_MODIFIER_TAILS = _DATE_TAIL_PATTERNS + (
+    rf"\d{{1,2}}\s+{_ARABIC_MONTH_PATTERN}(?:\s+\d{{4}})?",
+    rf"{_ARABIC_MONTH_PATTERN}(?:\s+\d{{4}})?",
+)
 _QUARTER = re.compile(r"\b(Q[1-4]\s+\d{4})\b", re.IGNORECASE)
 _QUARTER_SHORT = re.compile(r"\b(Q[1-4])\b", re.IGNORECASE)
 _VERSION_V = re.compile(r"\b(V\d+)\b", re.IGNORECASE)
@@ -35,11 +61,16 @@ def match_version_status(
     if not raw and not normalized:
         return None
 
+    keyword_date_match = _match_keyword_with_date(raw, keywords)
+    if keyword_date_match:
+        return keyword_date_match
+
     # Dates and V-patterns must be detected before dash-to-space normalization.
     for pattern, kind in (
         (_DATE_ISO, "date"),
         (_DATE_SLASH, "date"),
         (_DATE_DMY, "date"),
+        (_DATE_DMY_SLASH, "date"),
         (_QUARTER, "date"),
         (_VERSION_V, "version"),
         (_QUARTER_SHORT, "version"),
@@ -74,6 +105,28 @@ def match_version_status(
                 confidence=0.75,
                 kind="version",
             )
+
+    return None
+
+
+def _match_keyword_with_date(raw: str, keywords: List[str]) -> VersionStatusMatch | None:
+    text = raw.strip()
+    if not text:
+        return None
+
+    for keyword in sorted(keywords, key=len, reverse=True):
+        key = keyword.strip()
+        if not key:
+            continue
+        escaped = re.escape(key)
+        for tail in _KEYWORD_MODIFIER_TAILS:
+            if re.fullmatch(rf"{escaped}\s+{tail}", text, flags=re.IGNORECASE):
+                return VersionStatusMatch(
+                    value=text,
+                    matched_text=text,
+                    confidence=0.9,
+                    kind="keyword",
+                )
 
     return None
 
