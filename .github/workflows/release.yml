@@ -1,5 +1,6 @@
 name: Release
 
+# Triggered automatically after tag-release.yml creates v* on main merge.
 on:
   push:
     tags:
