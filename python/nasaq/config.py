@@ -127,12 +127,27 @@ class ConfigStore:
         defaults = default_config()
         if not config.document_types:
             config.document_types = list(defaults.document_types)
+        else:
+            for doc_type in defaults.document_types:
+                if doc_type not in config.document_types:
+                    config.document_types.append(doc_type)
+
         for alias, canonical in defaults.document_type_aliases.items():
             config.document_type_aliases.setdefault(alias, canonical)
+
         if not config.version_status_keywords:
             config.version_status_keywords = list(defaults.version_status_keywords)
+        else:
+            for keyword in defaults.version_status_keywords:
+                if keyword not in config.version_status_keywords:
+                    config.version_status_keywords.append(keyword)
+
         if not config.noise_words:
             config.noise_words = list(defaults.noise_words)
+        else:
+            for word in defaults.noise_words:
+                if word not in config.noise_words:
+                    config.noise_words.append(word)
         return config
 
     def _save(self, config: Optional[AppConfig] = None) -> None:
