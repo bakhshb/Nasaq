@@ -6,7 +6,7 @@ function normalizeFilename(name: string): string {
   return name.trim().toLowerCase().normalize("NFC");
 }
 
-function hasPendingEdits(row: ReviewRow): boolean {
+export function hasPendingEdits(row: ReviewRow): boolean {
   return (
     row.topic !== row.scannedTopic ||
     row.documentType !== row.scannedDocumentType ||

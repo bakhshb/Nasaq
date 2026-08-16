@@ -15,6 +15,7 @@ import { PythonBridge } from "./pythonBridge";
 import {
   applyRenames,
   buildTargetPath,
+  filterRenameMoves,
   RenameBatch,
   RenameMove,
   undoRenames,
@@ -113,16 +114,19 @@ function registerIpcHandlers(): void {
         toPath: buildTargetPath(item.absolutePath, item.proposedFullName),
       }));
 
-      await applyRenames(moves);
+      const actionableMoves = filterRenameMoves(moves);
+      const appliedCount = await applyRenames(moves);
 
-      const batch: RenameBatch = {
-        id: `batch-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        moves,
-      };
-      undoStack.push(batch);
+      if (actionableMoves.length > 0) {
+        const batch: RenameBatch = {
+          id: `batch-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          moves: actionableMoves,
+        };
+        undoStack.push(batch);
+      }
 
-      return { batchId: batch.id, count: moves.length };
+      return { batchId: `batch-${Date.now()}`, count: appliedCount };
     },
   );
 

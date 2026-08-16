@@ -12,10 +12,29 @@ export interface RenameBatch {
   moves: RenameMove[];
 }
 
-export async function applyRenames(moves: RenameMove[]): Promise<void> {
-  for (const move of moves) {
-    await fs.rename(move.fromPath, move.toPath);
+function pathsAreSame(fromPath: string, toPath: string): boolean {
+  const fromResolved = path.resolve(fromPath);
+  const toResolved = path.resolve(toPath);
+  if (fromResolved === toResolved) {
+    return true;
   }
+  if (process.platform === "win32") {
+    return fromResolved.toLowerCase() === toResolved.toLowerCase();
+  }
+  return false;
+}
+
+export function filterRenameMoves(moves: RenameMove[]): RenameMove[] {
+  return moves.filter((move) => !pathsAreSame(move.fromPath, move.toPath));
+}
+
+export async function applyRenames(moves: RenameMove[]): Promise<number> {
+  let applied = 0;
+  for (const move of filterRenameMoves(moves)) {
+    await fs.rename(move.fromPath, move.toPath);
+    applied += 1;
+  }
+  return applied;
 }
 
 export async function undoRenames(moves: RenameMove[]): Promise<void> {
