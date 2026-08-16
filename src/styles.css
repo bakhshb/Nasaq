@@ -131,6 +131,7 @@ button.toolbar-btn {
   color: var(--text);
   font-size: 0.88rem;
   padding: 0.42rem 0.75rem;
+  flex-shrink: 0;
 }
 
 button.toolbar-btn svg {
@@ -138,17 +139,20 @@ button.toolbar-btn svg {
   flex-shrink: 0;
 }
 
-button.toolbar-btn-icon {
-  padding: 0.5rem;
-  min-width: 2.4rem;
-  justify-content: center;
+button.toolbar-btn-undo {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  min-width: 5.5rem;
 }
 
-button.toolbar-btn-icon svg {
+button.toolbar-btn-undo svg {
   color: var(--text);
+  width: 22px;
+  height: 22px;
 }
 
-button.toolbar-btn-icon:disabled svg {
+button.toolbar-btn-undo:disabled svg {
   color: var(--muted);
 }
 
