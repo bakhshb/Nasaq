@@ -11,6 +11,7 @@ from nasaq.config import ConfigStore
 from nasaq.models import BatchProposal
 from nasaq.naming.engine import analyze_file
 from nasaq.scanner import scan_directory
+from nasaq.stdio_utf8 import configure_stdio_utf8
 from nasaq.validators import validate_batch
 
 
@@ -46,6 +47,7 @@ class RpcServer:
             return self._error(req_id, "internal_error", str(exc), detail=traceback.format_exc())
 
     def run(self) -> None:
+        configure_stdio_utf8()
         for line in sys.stdin:
             line = line.strip()
             if not line:

@@ -13,7 +13,7 @@
   --success-bg: #ecfdf3;
   --info-bg: #eff6ff;
   --warn-bg: #fffbeb;
-  font-family: "Segoe UI", "Noto Sans Arabic", system-ui, sans-serif;
+  font-family: "Noto Sans Arabic", "Segoe UI", system-ui, sans-serif;
 }
 
 * {
@@ -108,6 +108,7 @@ button.ghost {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  unicode-bidi: plaintext;
 }
 
 .recursive-toggle {
