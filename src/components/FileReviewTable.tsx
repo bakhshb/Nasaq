@@ -40,7 +40,7 @@ export default function FileReviewTable({ rows, documentTypes, separator, onUpda
                     onChange={(e) => onUpdateRow(row.id, { selected: e.target.checked })}
                   />
                 </td>
-                <td className="cell-filename" title={row.relativePath}>
+                <td className="cell-filename" title={row.relativePath} dir="auto">
                   {row.currentFullName}
                 </td>
                 <td>
