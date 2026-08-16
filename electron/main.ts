@@ -17,14 +17,17 @@ import {
 } from "./rename";
 import {
   getConfigEnvPath,
-  resolveIndexHtml,
   resolvePreloadPath,
+  resolveWindowUrl,
 } from "./platform/paths";
+import { registerAppProtocol, registerPrivilegedSchemes } from "./protocol";
 
 const python = new PythonBridge();
 let undoStack: RenameBatch[] = [];
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+registerPrivilegedSchemes();
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -40,14 +43,10 @@ function createWindow(): void {
     },
   });
 
-  const index = resolveIndexHtml(isDev);
-  if (index.startsWith("http")) {
-    window.loadURL(index);
-    if (isDev) {
-      window.webContents.openDevTools({ mode: "detach" });
-    }
-  } else {
-    window.loadFile(index);
+  const url = resolveWindowUrl(isDev);
+  window.loadURL(url);
+  if (isDev) {
+    window.webContents.openDevTools({ mode: "detach" });
   }
 
   window.webContents.on("did-fail-load", (_event, code, description, url) => {
@@ -69,6 +68,10 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    registerAppProtocol();
+  }
+
   try {
     await python.start();
   } catch (error) {

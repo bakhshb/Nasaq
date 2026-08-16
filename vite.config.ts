@@ -1,8 +1,19 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
+/** crossorigin breaks script/css loading under Electron file:// and app:// */
+function stripCrossoriginForElectron(): Plugin {
+  return {
+    name: "strip-crossorigin-for-electron",
+    apply: "build",
+    transformIndexHtml(html) {
+      return html.replace(/\s+crossorigin/g, "");
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), stripCrossoriginForElectron()],
   base: "./",
   server: {
     port: 5173,
@@ -10,5 +21,6 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    modulePreload: false,
   },
 });

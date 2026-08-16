@@ -9,7 +9,7 @@ function getElectronRoot(): string {
 
 export function getAppRoot(): string {
   if (app.isPackaged) {
-    return path.dirname(getElectronRoot());
+    return app.getAppPath();
   }
   return path.resolve(getElectronRoot(), "..");
 }
@@ -79,9 +79,9 @@ export function resolvePreloadPath(): string {
   return path.join(getElectronRoot(), "preload.js");
 }
 
-export function resolveIndexHtml(isDev: boolean): string {
+export function resolveWindowUrl(isDev: boolean): string {
   if (isDev) {
     return "http://localhost:5173";
   }
-  return path.join(getAppRoot(), "dist", "index.html");
+  return "app://bundle/dist/index.html";
 }
