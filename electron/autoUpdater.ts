@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 import { autoUpdater } from "electron-updater";
 
 export type UpdatePhase =
@@ -17,6 +17,7 @@ export interface UpdateStatus {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let packagedApp = false;
 
 export function setUpdateWindow(window: BrowserWindow): void {
   mainWindow = window;
@@ -29,6 +30,7 @@ function emit(status: UpdateStatus): void {
 }
 
 export function initAutoUpdater(isPackaged: boolean): void {
+  packagedApp = isPackaged;
   if (!isPackaged) {
     return;
   }
@@ -45,7 +47,7 @@ export function initAutoUpdater(isPackaged: boolean): void {
   });
 
   autoUpdater.on("update-not-available", () => {
-    emit({ phase: "not-available" });
+    emit({ phase: "not-available", version: app.getVersion() });
   });
 
   autoUpdater.on("download-progress", (progress) => {
@@ -68,7 +70,21 @@ export function initAutoUpdater(isPackaged: boolean): void {
 }
 
 export async function checkForUpdates(): Promise<void> {
-  await autoUpdater.checkForUpdates();
+  if (!packagedApp) {
+    emit({
+      phase: "not-available",
+      version: app.getVersion(),
+      message: "التحديثات التلقائية متاحة في النسخة المثبتة فقط.",
+    });
+    return;
+  }
+
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    emit({ phase: "error", message });
+  }
 }
 
 export async function downloadUpdate(): Promise<void> {
