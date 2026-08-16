@@ -25,6 +25,8 @@ export function getConfigEnvPath(): string {
 export function getPythonSpawnOptions(): { command: string; args: string[]; env: Record<string, string> } {
   const env = { ...process.env } as Record<string, string>;
   env.NASAQ_CONFIG_PATH = getConfigEnvPath();
+  env.PYTHONUTF8 = "1";
+  env.PYTHONIOENCODING = "utf-8";
 
   const bundledWin = path.join(process.resourcesPath, "nasaq-engine", "nasaq-engine.exe");
   const bundledUnix = path.join(process.resourcesPath, "nasaq-engine", "nasaq-engine");

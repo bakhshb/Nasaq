@@ -198,12 +198,16 @@ function MainApp() {
           />
           Scan subfolders
         </label>
-        <span className="folder-path">
+        <span className="folder-path" dir="ltr">
           {rootPath ? rootPath : "No folder selected"}
         </span>
       </section>
 
-      {error && <div className="banner error">{error}</div>}
+      {error && (
+        <div className="banner error" dir="ltr">
+          {error}
+        </div>
+      )}
       {statusMessage && <div className="banner success">{statusMessage}</div>}
       {loading && <div className="banner info">Working…</div>}
 

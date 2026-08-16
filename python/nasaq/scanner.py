@@ -9,12 +9,11 @@ from typing import List
 
 from nasaq.models import AppConfig, ScannedFile
 from nasaq.naming.normalize import split_extension
+from nasaq.path_utils import resolve_directory
 
 
 def scan_directory(root_path: str, config: AppConfig) -> List[ScannedFile]:
-    root = Path(root_path).resolve()
-    if not root.is_dir():
-        raise ValueError(f"Not a directory: {root_path}")
+    root = resolve_directory(root_path)
 
     iterator = root.rglob("*") if config.scan.recursive else root.glob("*")
     results: List[ScannedFile] = []

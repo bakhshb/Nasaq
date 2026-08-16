@@ -27,9 +27,17 @@ export class PythonBridge {
       const child = spawn(command, args, {
         env,
         stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
       });
 
-      const rl = readline.createInterface({ input: child.stdout });
+      child.stdin.setDefaultEncoding("utf8");
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+
+      const rl = readline.createInterface({
+        input: child.stdout,
+        crlfDelay: Infinity,
+      });
 
       rl.on("line", (line) => {
         try {
@@ -60,7 +68,7 @@ export class PythonBridge {
       });
 
       child.stderr.on("data", (chunk) => {
-        console.error("[nasaq-python]", chunk.toString());
+        console.error("[nasaq-python]", chunk.toString("utf8"));
       });
 
       child.on("error", (error) => {
@@ -100,7 +108,7 @@ export class PythonBridge {
 
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.process?.stdin.write(`${request}\n`, (error) => {
+      this.process?.stdin.write(`${request}\n`, "utf8", (error) => {
         if (error) {
           this.pending.delete(id);
           reject(error);
