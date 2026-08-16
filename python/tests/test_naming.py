@@ -237,3 +237,23 @@ def test_structured_name_with_final_version_phrase():
     assert result.document_type == "تقرير"
     assert result.version_status == "النسخة النهائية"
     assert result.proposed_full_name == name + ".pdf"
+
+
+def test_structured_name_preserves_keyword_qualifier_phrase():
+    config = default_config()
+    name = "مركز التفويج - عرض تقديمي - رد على فريق العمل الدائم"
+    result = analyze_file(_scanned(name + ".pptx"), config)
+
+    assert result.topic == "مركز التفويج"
+    assert result.document_type == "عرض تقديمي"
+    assert result.version_status == "رد على فريق العمل الدائم"
+    assert result.proposed_full_name == name + ".pptx"
+
+
+def test_structured_name_still_normalizes_single_keyword_version():
+    config = default_config()
+    name = "مركز التفويج - عرض تقديمي - رد"
+    result = analyze_file(_scanned(name + ".pptx"), config)
+
+    assert result.version_status == "رد"
+    assert result.proposed_full_name == name + ".pptx"

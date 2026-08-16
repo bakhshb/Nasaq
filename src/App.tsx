@@ -181,6 +181,10 @@ function MainApp() {
         id: row.id,
         absolutePath: row.absolutePath,
         proposedFullName: getRowProposedFullName(row),
+        topic: row.topic,
+        documentType: row.documentType,
+        versionStatus: row.versionStatus,
+        relativePath: row.relativePath,
       }));
 
       const result = await window.nasaq.renameBatch({ rootPath, items });

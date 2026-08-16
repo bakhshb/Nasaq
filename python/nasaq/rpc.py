@@ -7,6 +7,7 @@ import sys
 import traceback
 from typing import Any, Callable, Dict, Optional
 
+from nasaq.approved_names import ApprovedNamesStore
 from nasaq.config import ConfigStore
 from nasaq.models import BatchProposal
 from nasaq.naming.engine import analyze_file
@@ -16,14 +17,21 @@ from nasaq.validators import validate_batch
 
 
 class RpcServer:
-    def __init__(self, config_store: Optional[ConfigStore] = None) -> None:
+    def __init__(
+        self,
+        config_store: Optional[ConfigStore] = None,
+        approved_names_store: Optional[ApprovedNamesStore] = None,
+    ) -> None:
         self._config_store = config_store or ConfigStore()
+        self._approved_names_store = approved_names_store or ApprovedNamesStore()
         self._handlers: Dict[str, Callable[[Any], Any]] = {
             "ping": self._ping,
             "get_config": self._get_config,
             "update_config": self._update_config,
             "scan_and_analyze": self._scan_and_analyze,
             "validate_batch": self._validate_batch,
+            "save_approved_names": self._save_approved_names,
+            "revert_approved_names": self._revert_approved_names,
         }
 
     def handle(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -84,8 +92,30 @@ class RpcServer:
             config.scan.recursive = bool(params["recursive"])
 
         scanned = scan_directory(root_path, config)
-        results = [analyze_file(item, config).to_dict() for item in scanned]
+        results = [
+            self._approved_names_store.apply_to_result(analyze_file(item, config), config).to_dict()
+            for item in scanned
+        ]
         return {"files": results}
+
+    def _save_approved_names(self, params: Any) -> Dict[str, Any]:
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object")
+        root_path = str(params.get("rootPath", "")).strip()
+        items = params.get("items") or []
+        if not isinstance(items, list):
+            raise ValueError("items must be a list")
+        count = self._approved_names_store.save_after_rename(root_path, items)
+        return {"saved": count}
+
+    def _revert_approved_names(self, params: Any) -> Dict[str, Any]:
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object")
+        moves = params.get("moves") or []
+        if not isinstance(moves, list):
+            raise ValueError("moves must be a list")
+        count = self._approved_names_store.revert_after_undo(moves)
+        return {"removed": count}
 
     def _validate_batch(self, params: Any) -> Dict[str, Any]:
         if not isinstance(params, dict):

@@ -10,6 +10,7 @@ export interface RenameBatch {
   id: string;
   timestamp: string;
   moves: RenameMove[];
+  approvalMoves: RenameMove[];
 }
 
 function pathsAreSame(fromPath: string, toPath: string): boolean {

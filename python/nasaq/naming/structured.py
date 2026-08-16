@@ -99,6 +99,13 @@ def _normalize_version_segment(segment: str, version_keywords: list[str]) -> str
         return text.upper()
     match = match_version_status(text, version_keywords)
     if match:
+        # Keep qualifier phrases intact (e.g. "رد على فريق العمل الدائم") instead of
+        # collapsing to the leading keyword ("رد") when the segment is already isolated.
+        if (
+            match.kind == "keyword"
+            and normalize_for_match(match.value) != normalize_for_match(text)
+        ):
+            return text
         return match.value
     return text
 

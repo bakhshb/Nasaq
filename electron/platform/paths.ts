@@ -22,9 +22,14 @@ export function getConfigEnvPath(): string {
   return path.join(getUserDataPath(), "config.json");
 }
 
+export function getApprovedNamesEnvPath(): string {
+  return path.join(getUserDataPath(), "approved-names.json");
+}
+
 export function getPythonSpawnOptions(): { command: string; args: string[]; env: Record<string, string> } {
   const env = { ...process.env } as Record<string, string>;
   env.NASAQ_CONFIG_PATH = getConfigEnvPath();
+  env.NASAQ_APPROVED_NAMES_PATH = getApprovedNamesEnvPath();
   env.PYTHONUTF8 = "1";
   env.PYTHONIOENCODING = "utf-8";
 

@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "description": "Canonical naming examples for Nasaq. Each case documents how a filename should be parsed and what the app should suggest. When a user approves a rename, the result must stay organized on rescan.",
+  "cases": [
+    {
+      "id": "arabic-initiative-card",
+      "filename": "بطاقة المبادرة لمبادرة تقليص الظل مستلمة.xlsx",
+      "folder": "",
+      "expected": {
+        "topic": "تقليص الظل",
+        "documentType": "بطاقة مبادرة",
+        "versionStatus": "مستلمة",
+        "proposedFullName": "تقليص الظل - بطاقة مبادرة - مستلمة.xlsx"
+      }
+    },
+    {
+      "id": "no-version-status",
+      "filename": "تقرير تقليص الظل.docx",
+      "folder": "",
+      "expected": {
+        "topic": "تقليص الظل",
+        "documentType": "تقرير",
+        "versionStatus": "",
+        "proposedFullName": "تقليص الظل - تقرير.docx"
+      }
+    },
+    {
+      "id": "date-as-version",
+      "filename": "خطة مركز الابتكار 2026-08-15.pptx",
+      "folder": "",
+      "expected": {
+        "topic": "مركز الابتكار",
+        "documentType": "خطة",
+        "versionStatus": "2026-08-15",
+        "proposedFullName": "مركز الابتكار - خطة - 2026-08-15.pptx"
+      }
+    },
+    {
+      "id": "structured-q3",
+      "filename": "مكتب إدارة المشاريع و التوعية والتدريب - تقرير - Q3.pdf",
+      "folder": "ادارة المشاريع",
+      "expected": {
+        "topic": "مكتب إدارة المشاريع و التوعية والتدريب",
+        "documentType": "تقرير",
+        "versionStatus": "Q3",
+        "proposedFullName": "مكتب إدارة المشاريع و التوعية والتدريب - تقرير - Q3.pdf"
+      }
+    },
+    {
+      "id": "structured-swapped-reorder",
+      "filename": "احتياجات الاعمال - ادارة المشاريع - مختصرة.pdf",
+      "folder": "ادارة المشاريع",
+      "expected": {
+        "topic": "ادارة المشاريع",
+        "documentType": "احتياجات الاعمال",
+        "versionStatus": "مختصرة",
+        "proposedFullName": "ادارة المشاريع - احتياجات الاعمال - مختصرة.pdf"
+      }
+    },
+    {
+      "id": "status-with-arabic-month",
+      "filename": "نظام انجاز تنفيذي - تقرير - مراجعة 2 اغسطس.pdf",
+      "folder": "",
+      "expected": {
+        "topic": "نظام انجاز تنفيذي",
+        "documentType": "تقرير",
+        "versionStatus": "مراجعة 2 اغسطس",
+        "proposedFullName": "نظام انجاز تنفيذي - تقرير - مراجعة 2 اغسطس.pdf"
+      }
+    },
+    {
+      "id": "final-version-phrase",
+      "filename": "نظام انجاز تنفيذي - تقرير - النسخة النهائية.pdf",
+      "folder": "",
+      "expected": {
+        "topic": "نظام انجاز تنفيذي",
+        "documentType": "تقرير",
+        "versionStatus": "النسخة النهائية",
+        "proposedFullName": "نظام انجاز تنفيذي - تقرير - النسخة النهائية.pdf"
+      }
+    },
+    {
+      "id": "keyword-qualifier-phrase",
+      "filename": "مركز التفويج - عرض تقديمي - رد على فريق العمل الدائم.pptx",
+      "folder": "",
+      "notes": "Status keyword (رد) starts a longer qualifier — keep the full phrase, not just the keyword.",
+      "expected": {
+        "topic": "مركز التفويج",
+        "documentType": "عرض تقديمي",
+        "versionStatus": "رد على فريق العمل الدائم",
+        "proposedFullName": "مركز التفويج - عرض تقديمي - رد على فريق العمل الدائم.pptx"
+      },
+      "approval": {
+        "userFields": {
+          "topic": "مركز التفويج",
+          "documentType": "عرض تقديمي",
+          "versionStatus": "رد على فريق العمل الدائم"
+        },
+        "renamedTo": "مركز التفويج - عرض تقديمي - رد على فريق العمل الدائم.pptx",
+        "statusAfterRescan": "organized",
+        "persistedIn": "approved-names.json"
+      }
+    },
+    {
+      "id": "single-keyword-version",
+      "filename": "مركز التفويج - عرض تقديمي - رد.pptx",
+      "folder": "",
+      "expected": {
+        "topic": "مركز التفويج",
+        "documentType": "عرض تقديمي",
+        "versionStatus": "رد",
+        "proposedFullName": "مركز التفويج - عرض تقديمي - رد.pptx"
+      }
+    },
+    {
+      "id": "status-with-date",
+      "filename": "ادارة المشاريع - احتياجات الاعمال - مرسلة 28-08-2026.pdf",
+      "folder": "ادارة المشاريع",
+      "expected": {
+        "topic": "ادارة المشاريع",
+        "documentType": "احتياجات الاعمال",
+        "versionStatus": "مرسلة 28-08-2026",
+        "proposedFullName": "ادارة المشاريع - احتياجات الاعمال - مرسلة 28-08-2026.pdf"
+      }
+    }
+  ]
+}

@@ -20,7 +20,7 @@ import {
   RenameMove,
   undoRenames,
 } from "./rename";
-import { getConfigEnvPath } from "./platform/paths";
+import { getConfigEnvPath, getApprovedNamesEnvPath, getPythonSpawnOptions } from "./platform/paths";
 
 bootstrapLog(`main.ts start pid=${process.pid} packaged=${String(app.isPackaged)}`);
 
@@ -106,7 +106,15 @@ function registerIpcHandlers(): void {
       _event,
       payload: {
         rootPath: string;
-        items: Array<{ id: string; absolutePath: string; proposedFullName: string }>;
+        items: Array<{
+          id: string;
+          absolutePath: string;
+          proposedFullName: string;
+          topic: string;
+          documentType: string;
+          versionStatus: string;
+          relativePath: string;
+        }>;
       },
     ) => {
       const moves: RenameMove[] = payload.items.map((item) => ({
@@ -118,10 +126,34 @@ function registerIpcHandlers(): void {
       const appliedCount = await applyRenames(moves);
 
       if (actionableMoves.length > 0) {
+        const approvalItems = actionableMoves.map((move, index) => {
+          const source = payload.items.find((item) => item.absolutePath === move.fromPath) ?? payload.items[index];
+          const relativePath = source?.relativePath ?? "";
+          const updatedRelativePath = relativePath.includes("/")
+            ? `${relativePath.slice(0, relativePath.lastIndexOf("/") + 1)}${path.basename(move.toPath)}`
+            : path.basename(move.toPath);
+
+          return {
+            fromPath: move.fromPath,
+            toPath: move.toPath,
+            topic: source?.topic ?? "",
+            documentType: source?.documentType ?? "",
+            versionStatus: source?.versionStatus ?? "",
+            proposedFullName: path.basename(move.toPath),
+            relativePath: updatedRelativePath,
+          };
+        });
+
+        await python.call("save_approved_names", {
+          rootPath: payload.rootPath,
+          items: approvalItems,
+        });
+
         const batch: RenameBatch = {
           id: `batch-${Date.now()}`,
           timestamp: new Date().toISOString(),
           moves: actionableMoves,
+          approvalMoves: actionableMoves,
         };
         undoStack.push(batch);
       }
@@ -136,6 +168,14 @@ function registerIpcHandlers(): void {
       return { undone: false };
     }
     await undoRenames(batch.moves);
+    if (batch.approvalMoves.length > 0) {
+      await python.call("revert_approved_names", {
+        moves: batch.approvalMoves.map((move) => ({
+          fromPath: move.fromPath,
+          toPath: move.toPath,
+        })),
+      });
+    }
     return { undone: true, count: batch.moves.length, batchId: batch.id };
   });
 
@@ -144,6 +184,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle("app:getPaths", () => ({
     userData: app.getPath("userData"),
     configPath: getConfigEnvPath(),
+    approvedNamesPath: getApprovedNamesEnvPath(),
   }));
 
   ipcMain.handle("app:getVersion", () => app.getVersion());
