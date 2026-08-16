@@ -28,7 +28,24 @@ export function mergeRowsAfterScan(
     );
 
     if (filenamesMatch(row.currentFullName, priorProposed)) {
-      return { ...row, selected: false };
+      const approvedFullName = getProposedFullName(
+        prior.topic,
+        prior.documentType,
+        prior.versionStatus,
+        prior.extension,
+        separator,
+      );
+      return {
+        ...row,
+        topic: prior.topic,
+        documentType: prior.documentType,
+        versionStatus: prior.versionStatus,
+        scannedTopic: prior.topic,
+        scannedDocumentType: prior.documentType,
+        scannedVersionStatus: prior.versionStatus,
+        scannedProposedFullName: approvedFullName,
+        selected: false,
+      };
     }
 
     if (!hasPendingEdits(prior)) {
