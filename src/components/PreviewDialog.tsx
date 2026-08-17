@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { filenamesMatch } from "../lib/fileStatus";
 import {
-  getRenameProposedFullName,
+  getAcceptedProposedFullName,
   proposedStemFromFullName,
 } from "../lib/reviewWorkflow";
 import type { ReviewRow, ValidationIssue } from "../types";
@@ -49,7 +49,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
   const hasActualChanges = useMemo(
     () =>
       rows.some((row) => {
-        const proposed = getRenameProposedFullName(row, separator);
+        const proposed = getAcceptedProposedFullName(row, separator);
         return proposed !== "" && !filenamesMatch(proposed, row.currentFullName);
       }),
     [rows, separator],
@@ -68,7 +68,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
         existingPaths[row.id] = row.absolutePath;
       }
       const proposals = rows.map((row) => {
-        const proposedFullName = getRenameProposedFullName(row, separator);
+        const proposedFullName = getAcceptedProposedFullName(row, separator);
         return {
           fileId: row.id,
           proposedName: proposedStemFromFullName(row, proposedFullName),
@@ -167,7 +167,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
                 <tr key={row.id}>
                   <td dir="auto">{row.currentFullName}</td>
                   <td>→</td>
-                  <td dir="auto">{getRenameProposedFullName(row, separator)}</td>
+                  <td dir="auto">{getAcceptedProposedFullName(row, separator)}</td>
                 </tr>
               ))}
             </tbody>

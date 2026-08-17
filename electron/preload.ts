@@ -12,11 +12,14 @@ export interface NasaqApi {
   validateBatch: (params: Record<string, unknown>) => Promise<{
     issues: Array<{ fileId: string; code: string; message: string }>;
   }>;
+  saveReviewApproval: (payload: Record<string, unknown>) => Promise<{ saved: boolean }>;
+  removeReviewApproval: (payload: { reviewId: string }) => Promise<{ removed: boolean }>;
   selectFolder: () => Promise<string | null>;
   renameBatch: (payload: {
     rootPath: string;
     items: Array<{
       id: string;
+      reviewId: string;
       absolutePath: string;
       proposedFullName: string;
       topic: string;
@@ -24,10 +27,21 @@ export interface NasaqApi {
       versionStatus: string;
       relativePath: string;
     }>;
-  }) => Promise<{ batchId: string; count: number }>;
+  }) => Promise<{
+    batchId: string;
+    count: number;
+    results: Array<{
+      id: string;
+      reviewId: string;
+      fromPath: string;
+      toPath: string;
+      success: boolean;
+      error?: string;
+    }>;
+  }>;
   undoLastRename: () => Promise<{ undone: boolean; count?: number; batchId?: string }>;
   canUndo: () => Promise<boolean>;
-  getPaths: () => Promise<{ userData: string; configPath: string }>;
+  getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string; reviewApprovalsPath: string }>;
   getVersion: () => Promise<string>;
   checkForUpdates: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
@@ -49,9 +63,24 @@ const api: NasaqApi = {
     ipcRenderer.invoke("nasaq:validateBatch", params) as Promise<{
       issues: Array<{ fileId: string; code: string; message: string }>;
     }>,
+  saveReviewApproval: (payload) =>
+    ipcRenderer.invoke("nasaq:saveReviewApproval", payload) as Promise<{ saved: boolean }>,
+  removeReviewApproval: (payload) =>
+    ipcRenderer.invoke("nasaq:removeReviewApproval", payload) as Promise<{ removed: boolean }>,
   selectFolder: () => ipcRenderer.invoke("dialog:selectFolder") as Promise<string | null>,
   renameBatch: (payload) =>
-    ipcRenderer.invoke("fs:renameBatch", payload) as Promise<{ batchId: string; count: number }>,
+    ipcRenderer.invoke("fs:renameBatch", payload) as Promise<{
+      batchId: string;
+      count: number;
+      results: Array<{
+        id: string;
+        reviewId: string;
+        fromPath: string;
+        toPath: string;
+        success: boolean;
+        error?: string;
+      }>;
+    }>,
   undoLastRename: () =>
     ipcRenderer.invoke("fs:undoLastRename") as Promise<{
       undone: boolean;
@@ -64,6 +93,7 @@ const api: NasaqApi = {
       userData: string;
       configPath: string;
       approvedNamesPath: string;
+      reviewApprovalsPath: string;
     }>,
   getVersion: () => ipcRenderer.invoke("app:getVersion") as Promise<string>,
   checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates") as Promise<void>,

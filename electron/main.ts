@@ -21,7 +21,7 @@ import {
   RenameMove,
   undoRenames,
 } from "./rename";
-import { getConfigEnvPath, getApprovedNamesEnvPath, getPythonSpawnOptions } from "./platform/paths";
+import { getConfigEnvPath, getApprovedNamesEnvPath, getReviewApprovalsEnvPath, getPythonSpawnOptions } from "./platform/paths";
 
 bootstrapLog(`main.ts start pid=${process.pid} packaged=${String(app.isPackaged)}`);
 
@@ -90,6 +90,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle("nasaq:validateBatch", (_event, params: Record<string, unknown>) =>
     python.call("validate_batch", params),
   );
+  ipcMain.handle(
+    "nasaq:saveReviewApproval",
+    (_event, params: Record<string, unknown>) => python.call("save_review_approval", params),
+  );
+  ipcMain.handle(
+    "nasaq:removeReviewApproval",
+    (_event, params: Record<string, unknown>) => python.call("remove_review_approval", params),
+  );
 
   ipcMain.handle("dialog:selectFolder", async () => {
     const result = await dialog.showOpenDialog({
@@ -109,6 +117,7 @@ function registerIpcHandlers(): void {
         rootPath: string;
         items: Array<{
           id: string;
+          reviewId: string;
           absolutePath: string;
           proposedFullName: string;
           topic: string;
@@ -118,13 +127,50 @@ function registerIpcHandlers(): void {
         }>;
       },
     ) => {
+      const batchId = `batch-${Date.now()}`;
       try {
         const moves = await prepareRenameMoves(payload.rootPath, payload.items);
         const actionableMoves = filterRenameMoves(moves);
-        const appliedCount = await applyRenames(moves);
+        const moveResults = await applyRenames(moves);
 
-        if (actionableMoves.length > 0) {
-          const approvalItems = actionableMoves.map((move, index) => {
+        const successfulMoves: RenameMove[] = [];
+        const responseResults: Array<{
+          id: string;
+          reviewId: string;
+          fromPath: string;
+          toPath: string;
+          success: boolean;
+          error?: string;
+        }> = [];
+
+        for (let index = 0; index < actionableMoves.length; index += 1) {
+          const move = actionableMoves[index];
+          const result = moveResults[index];
+          const source =
+            payload.items.find((item) => {
+              const candidatePaths = [item.absolutePath, move.fromPath];
+              return candidatePaths.some(
+                (candidate) =>
+                  path.resolve(candidate).toLowerCase() === path.resolve(move.fromPath).toLowerCase(),
+              );
+            }) ?? payload.items[index];
+
+          if (result?.success) {
+            successfulMoves.push(move);
+          }
+
+          responseResults.push({
+            id: source?.id ?? payload.items[index]?.id ?? "",
+            reviewId: source?.reviewId ?? payload.items[index]?.reviewId ?? "",
+            fromPath: move.fromPath,
+            toPath: move.toPath,
+            success: Boolean(result?.success),
+            error: result?.success ? undefined : result?.error,
+          });
+        }
+
+        if (successfulMoves.length > 0) {
+          const approvalItems = successfulMoves.map((move, index) => {
             const source =
               payload.items.find((item) => {
                 const candidatePaths = [item.absolutePath, move.fromPath];
@@ -134,13 +180,15 @@ function registerIpcHandlers(): void {
                 );
               }) ?? payload.items[index];
             const relativePath = source?.relativePath ?? "";
-            const updatedRelativePath = relativePath.includes(path.sep) || relativePath.includes("/")
-              ? `${relativePath.slice(0, Math.max(relativePath.lastIndexOf("/"), relativePath.lastIndexOf("\\")) + 1)}${path.basename(move.toPath)}`
-              : path.basename(move.toPath);
+            const updatedRelativePath =
+              relativePath.includes(path.sep) || relativePath.includes("/")
+                ? `${relativePath.slice(0, Math.max(relativePath.lastIndexOf("/"), relativePath.lastIndexOf("\\")) + 1)}${path.basename(move.toPath)}`
+                : path.basename(move.toPath);
 
             return {
               fromPath: move.fromPath,
               toPath: move.toPath,
+              reviewId: source?.reviewId ?? "",
               topic: source?.topic ?? "",
               documentType: source?.documentType ?? "",
               versionStatus: source?.versionStatus ?? "",
@@ -154,16 +202,26 @@ function registerIpcHandlers(): void {
             items: approvalItems,
           });
 
+          for (const item of approvalItems) {
+            if (item.reviewId) {
+              await python.call("remove_review_approval", { reviewId: item.reviewId });
+            }
+          }
+
           const batch: RenameBatch = {
-            id: `batch-${Date.now()}`,
+            id: batchId,
             timestamp: new Date().toISOString(),
-            moves: actionableMoves,
-            approvalMoves: actionableMoves,
+            moves: successfulMoves,
+            approvalMoves: successfulMoves,
           };
           undoStack.push(batch);
         }
 
-        return { batchId: `batch-${Date.now()}`, count: appliedCount };
+        return {
+          batchId,
+          count: successfulMoves.length,
+          results: responseResults,
+        };
       } catch (error) {
         if (error instanceof RenameError) {
           throw new Error(error.message);
@@ -196,6 +254,7 @@ function registerIpcHandlers(): void {
     userData: app.getPath("userData"),
     configPath: getConfigEnvPath(),
     approvedNamesPath: getApprovedNamesEnvPath(),
+    reviewApprovalsPath: getReviewApprovalsEnvPath(),
   }));
 
   ipcMain.handle("app:getVersion", () => app.getVersion());

@@ -24,7 +24,9 @@
     "start": "electron . --no-sandbox",
     "start:packaged": "electron . --no-sandbox",
     "test:python": "node scripts/test-python.cjs",
-    "test:engine": "node scripts/smoke-test-engine.cjs"
+    "test:engine": "node scripts/smoke-test-engine.cjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "electron-updater": "^6.6.2",
@@ -40,6 +42,7 @@
     "electron-builder": "^25.1.8",
     "typescript": "^5.7.2",
     "vite": "^6.0.6",
+    "vitest": "^4.1.10",
     "wait-on": "^8.0.1"
   }
 }

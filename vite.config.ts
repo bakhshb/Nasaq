@@ -38,6 +38,10 @@ function stripCrossoriginForElectron(): Plugin {
 export default defineConfig({
   plugins: [react(), stripCrossoriginForElectron()],
   base: "./",
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+  },
   server: {
     port: 5173,
     strictPort: true,

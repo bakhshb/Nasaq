@@ -12,24 +12,41 @@ import {
 } from "./components/icons";
 import PreviewDialog from "./components/PreviewDialog";
 import UpdateBanner from "./components/UpdateBanner";
-import { mergeRowsAfterScan } from "./lib/mergeRowsAfterScan";
+import { applySuccessfulRename, mergeRowsAfterScan } from "./lib/mergeRowsAfterScan";
+import { createReviewId } from "./lib/reviewIdentity";
 import {
   acceptReviewRow,
   buildRenameItemFromRow,
   canApplyRow,
   countByReviewStatus,
   markRowPendingAfterEdit,
-  proposedStemFromFullName,
+  toReviewApprovalPayload,
   type ReviewFilter,
 } from "./lib/reviewWorkflow";
-import { filenamesMatch } from "./lib/fileStatus";
-import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
+import type { AnalyzedFile, AppConfig, ReviewRow, ReviewStatus } from "./types";
 
-function toReviewRow(file: AnalyzedFile): ReviewRow {
+type ScannedFile = AnalyzedFile & {
+  reviewId?: string;
+  knownAbsolutePaths?: string[];
+  reviewStatus?: ReviewStatus;
+  acceptedTopic?: string;
+  acceptedDocumentType?: string;
+  acceptedVersionStatus?: string;
+};
+
+function toReviewRow(file: ScannedFile): ReviewRow {
   const ext = file.extension || "";
+  const reviewId = file.reviewId?.trim() || createReviewId();
+  const knownAbsolutePaths = file.knownAbsolutePaths?.length
+    ? [...file.knownAbsolutePaths]
+    : [file.absolutePath];
+  const reviewStatus: ReviewStatus = file.reviewStatus ?? "pending";
+
   return {
     id: file.id,
+    reviewId,
     absolutePath: file.absolutePath,
+    knownAbsolutePaths,
     relativePath: file.relativePath,
     extension: ext,
     currentName: file.currentName,
@@ -37,10 +54,10 @@ function toReviewRow(file: AnalyzedFile): ReviewRow {
     documentType: file.documentType,
     topic: file.topic,
     versionStatus: file.versionStatus,
-    reviewStatus: "pending",
-    acceptedTopic: "",
-    acceptedDocumentType: "",
-    acceptedVersionStatus: "",
+    reviewStatus,
+    acceptedTopic: file.acceptedTopic ?? "",
+    acceptedDocumentType: file.acceptedDocumentType ?? "",
+    acceptedVersionStatus: file.acceptedVersionStatus ?? "",
     scannedProposedFullName: file.proposedFullName,
     scannedTopic: file.topic,
     scannedDocumentType: file.documentType,
@@ -92,6 +109,26 @@ function MainApp() {
     window.nasaq.getVersion().then(setAppVersion).catch(() => undefined);
   }, [loadConfig]);
 
+  const persistReadyApproval = useCallback(
+    async (row: ReviewRow) => {
+      if (!rootPath || row.reviewStatus !== "ready") {
+        return;
+      }
+      await window.nasaq.saveReviewApproval({
+        rootPath,
+        approval: toReviewApprovalPayload(row, separator),
+      });
+    },
+    [rootPath, separator],
+  );
+
+  const clearPersistedApproval = useCallback(async (reviewId: string) => {
+    if (!reviewId) {
+      return;
+    }
+    await window.nasaq.removeReviewApproval({ reviewId });
+  }, []);
+
   const scanFolder = useCallback(
     async (path: string, options?: { preserveStatus?: boolean }) => {
       setLoading(true);
@@ -131,22 +168,57 @@ function MainApp() {
         if (row.id !== id) {
           return row;
         }
-        return markRowPendingAfterEdit(row, patch);
+        const updated = markRowPendingAfterEdit(row, patch);
+        if (updated.reviewStatus === "pending" && row.reviewStatus !== "pending") {
+          void clearPersistedApproval(row.reviewId);
+        }
+        return updated;
       }),
     );
   };
 
-  const handleAcceptRow = (id: string) => {
+  const handleAcceptRow = async (id: string) => {
+    let acceptedRow: ReviewRow | null = null;
     setRows((prev) =>
-      prev.map((row) => (row.id === id ? acceptReviewRow(row, separator) : row)),
+      prev.map((row) => {
+        if (row.id !== id) {
+          return row;
+        }
+        acceptedRow = acceptReviewRow(row, separator);
+        return acceptedRow;
+      }),
     );
+
+    if (acceptedRow) {
+      if (acceptedRow.reviewStatus === "ready") {
+        await persistReadyApproval(acceptedRow);
+      } else if (acceptedRow.reviewStatus === "complete") {
+        await clearPersistedApproval(acceptedRow.reviewId);
+      }
+    }
   };
 
-  const handleAcceptSelected = () => {
+  const handleAcceptSelected = async () => {
+    const acceptedRows: ReviewRow[] = [];
     setRows((prev) =>
-      prev.map((row) =>
-        row.selected && row.reviewStatus === "pending" ? acceptReviewRow(row, separator) : row,
-      ),
+      prev.map((row) => {
+        if (row.selected && row.reviewStatus === "pending") {
+          const accepted = acceptReviewRow(row, separator);
+          acceptedRows.push(accepted);
+          return accepted;
+        }
+        return row;
+      }),
+    );
+
+    await Promise.all(
+      acceptedRows.map(async (row) => {
+        if (row.reviewStatus === "ready") {
+          await persistReadyApproval(row);
+        } else if (row.reviewStatus === "complete") {
+          await clearPersistedApproval(row.reviewId);
+        }
+      }),
     );
   };
 
@@ -181,7 +253,7 @@ function MainApp() {
 
   const handleApplyClick = () => {
     if (selectedApplyableRows.length === 0) {
-      setError("حدّد ملفًا واحدًا على الأقل بحالة «للمراجعة» أو «جاهز للتطبيق».");
+      setError("حدّد ملفًا واحدًا على الأقل بحالة «جاهز للتطبيق».");
       return;
     }
     setPreviewRows(selectedApplyableRows.map((row) => ({ ...row })));
@@ -203,17 +275,13 @@ function MainApp() {
     try {
       const items = snapshotRows
         .map((snapshot) => {
-          const live = rows.find((row) => row.id === snapshot.id) ?? snapshot;
-          return { live, item: buildRenameItemFromRow(live, separator) };
+          const live = rows.find((row) => row.reviewId === snapshot.reviewId) ?? snapshot;
+          return buildRenameItemFromRow(live, separator);
         })
-        .filter(
-          ({ live, item }) =>
-            item.proposedFullName !== "" && !filenamesMatch(item.proposedFullName, live.currentFullName),
-        )
-        .map(({ item }) => item);
+        .filter((item): item is NonNullable<typeof item> => item !== null);
 
       if (items.length === 0) {
-        setError("لا يوجد تغيير في الأسماء. أعد المسح إذا غيّرت الملفات خارج التطبيق.");
+        setError("لا توجد ملفات معتمدة جاهزة للتطبيق.");
         setShowPreview(false);
         return;
       }
@@ -222,31 +290,53 @@ function MainApp() {
       setShowPreview(false);
       setPreviewRows([]);
 
-      if (result.count === 0) {
-        setError("لم يُطبَّق أي تغيير. أعد المسح وتأكد أن الملف متاح محلياً (خصوصاً في OneDrive).");
-        return;
-      }
+      const resultByReviewId = new Map(result.results.map((entry) => [entry.reviewId, entry]));
+      const successes = result.results.filter((entry) => entry.success);
+      const failures = result.results.filter((entry) => !entry.success);
 
       setRows((prev) =>
         prev.map((row) => {
-          const item = items.find((entry) => entry.id === row.id);
-          if (!item) {
+          const outcome = resultByReviewId.get(row.reviewId);
+          if (!outcome) {
             return row;
           }
-          const accepted = acceptReviewRow(row, separator);
+          if (outcome.success) {
+            const item = items.find((entry) => entry.reviewId === row.reviewId);
+            if (!item) {
+              return row;
+            }
+            return applySuccessfulRename(
+              row,
+              outcome.fromPath,
+              outcome.toPath,
+              item.proposedFullName,
+              separator,
+            );
+          }
           return {
-            ...accepted,
-            currentName: proposedStemFromFullName(row, item.proposedFullName),
-            currentFullName: item.proposedFullName,
-            reviewStatus: "complete" as const,
-            selected: false,
+            ...row,
+            reviewStatus: "ready" as const,
+            applyError: outcome.error ?? "تعذّر تطبيق إعادة التسمية.",
           };
         }),
       );
 
-      setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
-      setCanUndo(true);
-      await scanFolder(rootPath, { preserveStatus: true });
+      if (successes.length > 0 && failures.length === 0) {
+        setStatusMessage(`تمت إعادة تسمية ${successes.length} ملف.`);
+        setCanUndo(true);
+      } else if (successes.length > 0 && failures.length > 0) {
+        setStatusMessage(`تمت إعادة تسمية ${successes.length} ملف. فشل ${failures.length} ملف — راجع الأخطاء في الجدول.`);
+        setCanUndo(true);
+        setError(failures.map((entry) => entry.error).filter(Boolean).join(" · "));
+      } else if (failures.length > 0) {
+        setError(failures.map((entry) => entry.error).filter(Boolean).join(" · "));
+      } else {
+        setError("لم يُطبَّق أي تغيير. أعد المسح وتأكد أن الملف متاح محلياً (خصوصاً في OneDrive).");
+      }
+
+      if (successes.length > 0) {
+        await scanFolder(rootPath, { preserveStatus: true });
+      }
     } catch (err) {
       const message = String(err);
       if (message.includes("تعذّر العثور على الملف")) {
@@ -276,6 +366,20 @@ function MainApp() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuggestDocumentType = async (value: string) => {
+    if (!config || !value.trim()) {
+      return;
+    }
+    const trimmed = value.trim();
+    if (config.documentTypes.includes(trimmed)) {
+      return;
+    }
+    const updated = await window.nasaq.updateConfig({
+      documentTypes: [...config.documentTypes, trimmed],
+    });
+    setConfig(updated);
   };
 
   const handleSaveDocumentTypes = async (types: string[]) => {
@@ -426,7 +530,8 @@ function MainApp() {
               separator={separator}
               filter={fileFilter}
               onUpdateRow={updateRow}
-              onAcceptRow={handleAcceptRow}
+              onAcceptRow={(id) => void handleAcceptRow(id)}
+              onSuggestDocumentType={(value) => void handleSuggestDocumentType(value)}
             />
           </>
         )}
@@ -443,7 +548,7 @@ function MainApp() {
           <button
             type="button"
             className="toolbar-btn"
-            onClick={handleAcceptSelected}
+            onClick={() => void handleAcceptSelected()}
             disabled={selectedPendingCount === 0 || loading}
           >
             اعتماد المحدد ({selectedPendingCount})

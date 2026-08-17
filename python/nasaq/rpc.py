@@ -11,6 +11,8 @@ from nasaq.approved_names import ApprovedNamesStore
 from nasaq.config import ConfigStore
 from nasaq.models import BatchProposal
 from nasaq.naming.engine import analyze_file
+from nasaq.review_approvals import ReviewApprovalsStore
+from nasaq.review_state import apply_persisted_approvals
 from nasaq.scanner import scan_directory
 from nasaq.stdio_utf8 import configure_stdio_utf8
 from nasaq.validators import validate_batch
@@ -21,9 +23,11 @@ class RpcServer:
         self,
         config_store: Optional[ConfigStore] = None,
         approved_names_store: Optional[ApprovedNamesStore] = None,
+        review_approvals_store: Optional[ReviewApprovalsStore] = None,
     ) -> None:
         self._config_store = config_store or ConfigStore()
         self._approved_names_store = approved_names_store or ApprovedNamesStore()
+        self._review_approvals_store = review_approvals_store or ReviewApprovalsStore()
         self._handlers: Dict[str, Callable[[Any], Any]] = {
             "ping": self._ping,
             "get_config": self._get_config,
@@ -32,6 +36,8 @@ class RpcServer:
             "validate_batch": self._validate_batch,
             "save_approved_names": self._save_approved_names,
             "revert_approved_names": self._revert_approved_names,
+            "save_review_approval": self._save_review_approval,
+            "remove_review_approval": self._remove_review_approval,
         }
 
     def handle(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -96,7 +102,8 @@ class RpcServer:
             self._approved_names_store.apply_to_result(analyze_file(item, config), config).to_dict()
             for item in scanned
         ]
-        return {"files": results}
+        merged = apply_persisted_approvals(self._review_approvals_store, root_path, results)
+        return {"files": merged}
 
     def _save_approved_names(self, params: Any) -> Dict[str, Any]:
         if not isinstance(params, dict):
@@ -116,6 +123,44 @@ class RpcServer:
             raise ValueError("moves must be a list")
         count = self._approved_names_store.revert_after_undo(moves)
         return {"removed": count}
+
+    def _save_review_approval(self, params: Any) -> Dict[str, Any]:
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object")
+        root_path = str(params.get("rootPath", "")).strip()
+        approval = params.get("approval") or {}
+        if not isinstance(approval, dict):
+            raise ValueError("approval must be an object")
+
+        review_id = str(approval.get("reviewId", "")).strip()
+        absolute_path = str(approval.get("absolutePath", "")).strip()
+        if not review_id or not absolute_path:
+            raise ValueError("reviewId and absolutePath are required")
+
+        known_paths = approval.get("knownAbsolutePaths") or []
+        if not isinstance(known_paths, list):
+            known_paths = []
+
+        self._review_approvals_store.save_ready(
+            review_id=review_id,
+            absolute_path=absolute_path,
+            root_path=root_path,
+            topic=str(approval.get("topic", "")),
+            document_type=str(approval.get("documentType", "")),
+            version_status=str(approval.get("versionStatus", "")),
+            accepted_full_name=str(approval.get("acceptedFullName", "")),
+            known_absolute_paths=[str(path) for path in known_paths],
+        )
+        return {"saved": True}
+
+    def _remove_review_approval(self, params: Any) -> Dict[str, Any]:
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object")
+        review_id = str(params.get("reviewId", "")).strip()
+        if not review_id:
+            raise ValueError("reviewId is required")
+        removed = self._review_approvals_store.remove(review_id)
+        return {"removed": removed}
 
     def _validate_batch(self, params: Any) -> Dict[str, Any]:
         if not isinstance(params, dict):

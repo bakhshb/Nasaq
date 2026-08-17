@@ -169,16 +169,44 @@ export async function prepareRenameMoves(
   return moves;
 }
 
-export async function applyRenames(moves: RenameMove[]): Promise<number> {
+export interface RenameMoveResult {
+  fromPath: string;
+  toPath: string;
+  success: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
+export async function applyRenames(moves: RenameMove[]): Promise<RenameMoveResult[]> {
   const actionableMoves = filterRenameMoves(moves);
-  let applied = 0;
+  const results: RenameMoveResult[] = [];
 
   for (const move of actionableMoves) {
-    await renamePath(move.fromPath, move.toPath);
-    applied += 1;
+    try {
+      await renamePath(move.fromPath, move.toPath);
+      results.push({ fromPath: move.fromPath, toPath: move.toPath, success: true });
+    } catch (error) {
+      if (error instanceof RenameError) {
+        results.push({
+          fromPath: move.fromPath,
+          toPath: move.toPath,
+          success: false,
+          error: error.message,
+          errorCode: error.code,
+        });
+      } else {
+        results.push({
+          fromPath: move.fromPath,
+          toPath: move.toPath,
+          success: false,
+          error: String(error),
+          errorCode: "unknown",
+        });
+      }
+    }
   }
 
-  return applied;
+  return results;
 }
 
 export async function undoRenames(moves: RenameMove[]): Promise<void> {

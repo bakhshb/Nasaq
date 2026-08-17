@@ -38,7 +38,11 @@ export type ReviewStatus = "pending" | "ready" | "complete";
 
 export interface ReviewRow {
   id: string;
+  /** Stable identity across renames; persisted with ready approvals. */
+  reviewId: string;
   absolutePath: string;
+  /** Prior absolute paths after successful renames (for merge/rescan). */
+  knownAbsolutePaths: string[];
   relativePath: string;
   extension: string;
   currentName: string;
@@ -56,6 +60,26 @@ export interface ReviewRow {
   scannedVersionStatus: string;
   selected: boolean;
   warnings: string[];
+  /** Last rename failure message when status is ready. */
+  applyError?: string;
+}
+
+export interface ReviewApprovalPayload {
+  reviewId: string;
+  absolutePath: string;
+  knownAbsolutePaths: string[];
+  topic: string;
+  documentType: string;
+  versionStatus: string;
+  acceptedFullName: string;
+}
+
+export interface RenameBatchResultItem {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  success: boolean;
+  error?: string;
 }
 
 export interface ValidationIssue {
@@ -98,10 +122,16 @@ declare global {
         existingPaths: Record<string, string>;
       }) => Promise<{ issues: ValidationIssue[] }>;
       selectFolder: () => Promise<string | null>;
+      saveReviewApproval: (payload: {
+        rootPath: string;
+        approval: ReviewApprovalPayload;
+      }) => Promise<{ saved: boolean }>;
+      removeReviewApproval: (payload: { reviewId: string }) => Promise<{ removed: boolean }>;
       renameBatch: (payload: {
         rootPath: string;
         items: Array<{
           id: string;
+          reviewId: string;
           absolutePath: string;
           proposedFullName: string;
           topic: string;
@@ -109,10 +139,15 @@ declare global {
           versionStatus: string;
           relativePath: string;
         }>;
-      }) => Promise<{ batchId: string; count: number }>;
+      }) => Promise<{ batchId: string; count: number; results: RenameBatchResultItem[] }>;
       undoLastRename: () => Promise<{ undone: boolean; count?: number }>;
       canUndo: () => Promise<boolean>;
-      getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string }>;
+      getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string; reviewApprovalsPath: string }>;
+      saveReviewApproval: (payload: {
+        rootPath: string;
+        approval: ReviewApprovalPayload;
+      }) => Promise<{ saved: boolean }>;
+      removeReviewApproval: (payload: { reviewId: string }) => Promise<{ removed: boolean }>;
       getVersion: () => Promise<string>;
       checkForUpdates: () => Promise<void>;
       downloadUpdate: () => Promise<void>;
