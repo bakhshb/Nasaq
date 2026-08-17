@@ -15,11 +15,14 @@ import UpdateBanner from "./components/UpdateBanner";
 import { mergeRowsAfterScan } from "./lib/mergeRowsAfterScan";
 import {
   acceptReviewRow,
+  buildRenameItemFromRow,
+  canApplyRow,
   countByReviewStatus,
-  getAcceptedProposedFullName,
   markRowPendingAfterEdit,
+  proposedStemFromFullName,
   type ReviewFilter,
 } from "./lib/reviewWorkflow";
+import { filenamesMatch } from "./lib/fileStatus";
 import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
 
 function toReviewRow(file: AnalyzedFile): ReviewRow {
@@ -69,6 +72,7 @@ function MainApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewRows, setPreviewRows] = useState<ReviewRow[]>([]);
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -146,10 +150,9 @@ function MainApp() {
     );
   };
 
-  const readyRows = useMemo(() => rows.filter((row) => row.reviewStatus === "ready"), [rows]);
-  const selectedReadyRows = useMemo(
-    () => readyRows.filter((row) => row.selected),
-    [readyRows],
+  const selectedApplyableRows = useMemo(
+    () => rows.filter((row) => row.selected && canApplyRow(row)),
+    [rows],
   );
   const selectedPendingCount = useMemo(
     () => rows.filter((row) => row.selected && row.reviewStatus === "pending").length,
@@ -177,35 +180,69 @@ function MainApp() {
   };
 
   const handleApplyClick = () => {
-    if (selectedReadyRows.length === 0) {
-      setError("حدّد ملفًا واحدًا على الأقل بحالة «جاهز للتطبيق».");
+    if (selectedApplyableRows.length === 0) {
+      setError("حدّد ملفًا واحدًا على الأقل بحالة «للمراجعة» أو «جاهز للتطبيق».");
       return;
     }
+    setPreviewRows(selectedApplyableRows.map((row) => ({ ...row })));
     setShowPreview(true);
   };
 
-  const handleConfirmRename = async (rowsToRename: ReviewRow[]) => {
-    if (!rootPath || rowsToRename.length === 0) return;
+  const handleConfirmRename = async (snapshotRows: ReviewRow[]) => {
+    if (!rootPath) {
+      setError("لم يتم تحديد مجلد.");
+      return;
+    }
+    if (snapshotRows.length === 0) {
+      setError("لا توجد ملفات لتطبيق التسمية.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const items = rowsToRename.map((row) => ({
-        id: row.id,
-        absolutePath: row.absolutePath,
-        proposedFullName: getAcceptedProposedFullName(row, separator),
-        topic: row.acceptedTopic,
-        documentType: row.acceptedDocumentType,
-        versionStatus: row.acceptedVersionStatus,
-        relativePath: row.relativePath,
-      }));
+      const items = snapshotRows
+        .map((snapshot) => {
+          const live = rows.find((row) => row.id === snapshot.id) ?? snapshot;
+          return { live, item: buildRenameItemFromRow(live, separator) };
+        })
+        .filter(
+          ({ live, item }) =>
+            item.proposedFullName !== "" && !filenamesMatch(item.proposedFullName, live.currentFullName),
+        )
+        .map(({ item }) => item);
+
+      if (items.length === 0) {
+        setError("لا يوجد تغيير في الأسماء. أعد المسح إذا غيّرت الملفات خارج التطبيق.");
+        setShowPreview(false);
+        return;
+      }
 
       const result = await window.nasaq.renameBatch({ rootPath, items });
       setShowPreview(false);
+      setPreviewRows([]);
 
       if (result.count === 0) {
-        setStatusMessage("لم يتغيّر أي اسم — الاسم المعتمد مطابق للاسم الحالي.");
+        setError("لم يُطبَّق أي تغيير. أعد المسح وتأكد أن الملف متاح محلياً (خصوصاً في OneDrive).");
         return;
       }
+
+      setRows((prev) =>
+        prev.map((row) => {
+          const item = items.find((entry) => entry.id === row.id);
+          if (!item) {
+            return row;
+          }
+          const accepted = acceptReviewRow(row, separator);
+          return {
+            ...accepted,
+            currentName: proposedStemFromFullName(row, item.proposedFullName),
+            currentFullName: item.proposedFullName,
+            reviewStatus: "complete" as const,
+            selected: false,
+          };
+        }),
+      );
 
       setStatusMessage(`تمت إعادة تسمية ${result.count} ملف.`);
       setCanUndo(true);
@@ -415,9 +452,9 @@ function MainApp() {
             type="button"
             className="primary"
             onClick={handleApplyClick}
-            disabled={selectedReadyRows.length === 0 || loading}
+            disabled={selectedApplyableRows.length === 0 || loading}
           >
-            تطبيق التسمية ({selectedReadyRows.length})
+            تطبيق التسمية ({selectedApplyableRows.length})
           </button>
         </div>
       </footer>
@@ -425,9 +462,12 @@ function MainApp() {
       {showPreview && rootPath && (
         <PreviewDialog
           rootPath={rootPath}
-          rows={selectedReadyRows}
+          rows={previewRows}
           separator={separator}
-          onClose={() => setShowPreview(false)}
+          onClose={() => {
+            setShowPreview(false);
+            setPreviewRows([]);
+          }}
           onConfirm={handleConfirmRename}
         />
       )}

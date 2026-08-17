@@ -92,3 +92,47 @@ export function countByReviewStatus(rows: ReviewRow[]): Record<ReviewStatus, num
     { pending: 0, ready: 0, complete: 0 },
   );
 }
+
+export function canApplyRow(row: ReviewRow): boolean {
+  return row.reviewStatus === "pending" || row.reviewStatus === "ready";
+}
+
+/** Proposed full name that would be applied after auto-accepting current draft fields. */
+export function getRenameProposedFullName(row: ReviewRow, separator = " - "): string {
+  return getAcceptedProposedFullName(acceptReviewRow(row, separator), separator);
+}
+
+export interface RenameBatchItem {
+  id: string;
+  absolutePath: string;
+  proposedFullName: string;
+  topic: string;
+  documentType: string;
+  versionStatus: string;
+  relativePath: string;
+}
+
+export function buildRenameItemFromRow(row: ReviewRow, separator = " - "): RenameBatchItem {
+  const accepted = acceptReviewRow(row, separator);
+  return {
+    id: accepted.id,
+    absolutePath: accepted.absolutePath,
+    proposedFullName: getAcceptedProposedFullName(accepted, separator),
+    topic: accepted.acceptedTopic,
+    documentType: accepted.acceptedDocumentType,
+    versionStatus: accepted.acceptedVersionStatus,
+    relativePath: accepted.relativePath,
+  };
+}
+
+export function proposedStemFromFullName(row: ReviewRow, proposedFullName: string): string {
+  const extension = row.extension;
+  if (extension && proposedFullName.endsWith(extension)) {
+    return proposedFullName.slice(0, proposedFullName.length - extension.length);
+  }
+  const dotIndex = proposedFullName.lastIndexOf(".");
+  if (dotIndex > 0) {
+    return proposedFullName.slice(0, dotIndex);
+  }
+  return proposedFullName;
+}
