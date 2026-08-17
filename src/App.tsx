@@ -199,7 +199,12 @@ function MainApp() {
       setCanUndo(true);
       await scanFolder(rootPath, { preserveStatus: true });
     } catch (err) {
-      setError(String(err));
+      const message = String(err);
+      if (message.includes("تعذّر العثور على الملف")) {
+        setError(`${message} جرّب «إعادة المسح» ثم أعد المحاولة.`);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }

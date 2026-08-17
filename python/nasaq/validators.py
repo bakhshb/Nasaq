@@ -116,8 +116,14 @@ def validate_batch(
         source_path = path_by_id.get(proposal.file_id)
         if source_path:
             source = Path(source_path)
-            target = root / source.parent.name / full_name if source.parent != root else root / full_name
-            # Resolve relative to same directory as source file
+            if not source.is_file():
+                issues.append(
+                    ValidationIssue(
+                        file_id=proposal.file_id,
+                        code="source_not_found",
+                        message="Original file not found on disk. Rescan the folder and ensure OneDrive finished syncing.",
+                    )
+                )
             target = source.parent / full_name
             if target.exists() and target.resolve() != source.resolve():
                 issues.append(
