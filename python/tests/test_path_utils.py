@@ -38,3 +38,5 @@ def test_scan_directory_arabic_folder(tmp_path):
     results = scan_directory(str(work), config)
     assert len(results) == 1
     assert results[0].current_name == "تقرير"
+    assert results[0].created_at
+    assert results[0].modified_at

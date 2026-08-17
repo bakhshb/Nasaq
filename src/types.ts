@@ -32,6 +32,9 @@ export interface AnalyzedFile {
     overall: number;
   };
   warnings: string[];
+  createdAt?: string;
+  createdAtIsBirthtime?: boolean;
+  modifiedAt?: string;
 }
 
 export type ReviewStatus = "pending" | "ready" | "complete";
@@ -62,6 +65,9 @@ export interface ReviewRow {
   warnings: string[];
   /** Last rename failure message when status is ready. */
   applyError?: string;
+  createdAt?: string;
+  createdAtIsBirthtime?: boolean;
+  modifiedAt?: string;
 }
 
 export interface ReviewApprovalPayload {
@@ -142,6 +148,14 @@ declare global {
       }) => Promise<{ batchId: string; count: number; results: RenameBatchResultItem[] }>;
       undoLastRename: () => Promise<{ undone: boolean; count?: number }>;
       canUndo: () => Promise<boolean>;
+      getPlatform: () => Promise<"win32" | "darwin" | "linux">;
+      openFile: (absolutePath: string) => Promise<{ ok: boolean; error?: string }>;
+      revealInFolder: (absolutePath: string) => Promise<{ ok: boolean; error?: string }>;
+      getFileStats: (absolutePath: string) => Promise<{
+        createdAt: string;
+        modifiedAt: string;
+        createdAtIsBirthtime: boolean;
+      }>;
       getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string; reviewApprovalsPath: string }>;
       saveReviewApproval: (payload: {
         rootPath: string;

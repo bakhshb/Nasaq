@@ -5,6 +5,13 @@ import { bootstrapLog } from "./bootstrapLog";
 import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
 
 import {
+  getFileStats,
+  openFile,
+  revealFileInFolder,
+  type AppPlatform,
+} from "./platform/fileActions";
+
+import {
   checkForUpdates,
   downloadUpdate,
   initAutoUpdater,
@@ -249,6 +256,20 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("fs:canUndo", () => undoStack.length > 0);
+
+  ipcMain.handle("app:getPlatform", () => process.platform as AppPlatform);
+
+  ipcMain.handle("fs:openFile", async (_event, absolutePath: string) =>
+    openFile(absolutePath),
+  );
+
+  ipcMain.handle("fs:revealInFolder", async (_event, absolutePath: string) =>
+    revealFileInFolder(absolutePath),
+  );
+
+  ipcMain.handle("fs:getFileStats", async (_event, absolutePath: string) =>
+    getFileStats(absolutePath, process.platform as AppPlatform),
+  );
 
   ipcMain.handle("app:getPaths", () => ({
     userData: app.getPath("userData"),

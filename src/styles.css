@@ -336,6 +336,90 @@ button.icon-btn {
   line-height: 1.45;
 }
 
+.cell-filename-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.cell-filename-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.file-row-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.file-row-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.file-row-menu-trigger:hover,
+.file-row-menu-trigger[aria-expanded="true"] {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.file-row-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  inset-inline-end: 0;
+  z-index: 20;
+  min-width: 13rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.file-row-menu-item {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.45rem 0.6rem;
+  text-align: start;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.file-row-menu-item:hover {
+  background: #f8fafc;
+}
+
+.file-row-menu-info {
+  margin-top: 0.2rem;
+  padding: 0.45rem 0.6rem 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+.file-row-menu-info-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.file-row-menu-info-value {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
 .cell-proposed {
   font-weight: 500;
   max-width: 300px;

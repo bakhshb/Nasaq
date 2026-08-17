@@ -41,6 +41,14 @@ export interface NasaqApi {
   }>;
   undoLastRename: () => Promise<{ undone: boolean; count?: number; batchId?: string }>;
   canUndo: () => Promise<boolean>;
+  getPlatform: () => Promise<"win32" | "darwin" | "linux">;
+  openFile: (absolutePath: string) => Promise<{ ok: boolean; error?: string }>;
+  revealInFolder: (absolutePath: string) => Promise<{ ok: boolean; error?: string }>;
+  getFileStats: (absolutePath: string) => Promise<{
+    createdAt: string;
+    modifiedAt: string;
+    createdAtIsBirthtime: boolean;
+  }>;
   getPaths: () => Promise<{ userData: string; configPath: string; approvedNamesPath: string; reviewApprovalsPath: string }>;
   getVersion: () => Promise<string>;
   checkForUpdates: () => Promise<void>;
@@ -88,6 +96,17 @@ const api: NasaqApi = {
       batchId?: string;
     }>,
   canUndo: () => ipcRenderer.invoke("fs:canUndo") as Promise<boolean>,
+  getPlatform: () => ipcRenderer.invoke("app:getPlatform") as Promise<"win32" | "darwin" | "linux">,
+  openFile: (absolutePath) =>
+    ipcRenderer.invoke("fs:openFile", absolutePath) as Promise<{ ok: boolean; error?: string }>,
+  revealInFolder: (absolutePath) =>
+    ipcRenderer.invoke("fs:revealInFolder", absolutePath) as Promise<{ ok: boolean; error?: string }>,
+  getFileStats: (absolutePath) =>
+    ipcRenderer.invoke("fs:getFileStats", absolutePath) as Promise<{
+      createdAt: string;
+      modifiedAt: string;
+      createdAtIsBirthtime: boolean;
+    }>,
   getPaths: () =>
     ipcRenderer.invoke("app:getPaths") as Promise<{
       userData: string;

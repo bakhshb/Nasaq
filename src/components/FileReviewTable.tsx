@@ -1,3 +1,4 @@
+import FileRowMenu from "./FileRowMenu";
 import {
   canSelectRow,
   draftMatchesDisk,
@@ -16,6 +17,7 @@ interface Props {
   onUpdateRow: (id: string, patch: Partial<ReviewRow>) => void;
   onAcceptRow: (id: string) => void;
   onSuggestDocumentType: (value: string) => void;
+  onFileActionError?: (message: string) => void;
 }
 
 const DOCUMENT_TYPE_DATALIST_ID = "document-type-options";
@@ -28,6 +30,7 @@ export default function FileReviewTable({
   onUpdateRow,
   onAcceptRow,
   onSuggestDocumentType,
+  onFileActionError,
 }: Props) {
   const rowsWithMeta = rows.map((row) => ({
     row,
@@ -99,8 +102,18 @@ export default function FileReviewTable({
                       </div>
                     )}
                   </td>
-                  <td className="cell-filename" title={row.relativePath} dir="auto">
-                    {row.currentFullName}
+                  <td className="cell-filename" dir="auto">
+                    <div className="cell-filename-wrap">
+                      <span className="cell-filename-text" title={row.relativePath}>
+                        {row.currentFullName}
+                      </span>
+                      <FileRowMenu
+                        absolutePath={row.absolutePath}
+                        createdAt={row.createdAt}
+                        createdAtIsBirthtime={row.createdAtIsBirthtime}
+                        onError={onFileActionError}
+                      />
+                    </div>
                   </td>
                   <td>
                     <DocumentTypeCell
