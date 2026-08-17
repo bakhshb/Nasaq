@@ -112,7 +112,7 @@ def test_revert_after_undo_removes_entry(tmp_path):
     assert store.lookup(to_path, "approved.pptx") is None
 
 
-def test_lookup_ignores_stale_filename(tmp_path):
+def test_lookup_removes_stale_entry_when_filename_changed(tmp_path):
     store_path = tmp_path / "approved-names.json"
     store = ApprovedNamesStore(str(store_path))
     absolute_path = str(tmp_path / "file.pptx")
@@ -133,3 +133,30 @@ def test_lookup_ignores_stale_filename(tmp_path):
     )
 
     assert store.lookup(absolute_path, "renamed-later.pptx") is None
+    assert store.lookup(absolute_path, "file.pptx") is None
+    assert store_path.read_text(encoding="utf-8").find(absolute_path) == -1
+
+
+def test_lookup_removes_stale_short_approval_when_disk_has_long_name(tmp_path):
+    store_path = tmp_path / "approved-names.json"
+    store = ApprovedNamesStore(str(store_path))
+    absolute_path = str(tmp_path / "file.pptx")
+
+    store.save_after_rename(
+        str(tmp_path),
+        [
+            {
+                "fromPath": absolute_path,
+                "toPath": absolute_path,
+                "topic": "موضوع",
+                "documentType": "تقرير",
+                "versionStatus": "رد",
+                "proposedFullName": "موضوع - تقرير - رد.pptx",
+                "relativePath": "file.pptx",
+            }
+        ],
+    )
+
+    long_name = "موضوع - تقرير - رد على استفسار فريق العمل الدائم.pptx"
+    assert store.lookup(absolute_path, long_name) is None
+    assert store.lookup(absolute_path, "موضوع - تقرير - رد.pptx") is None

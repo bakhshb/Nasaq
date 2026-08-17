@@ -102,6 +102,18 @@
       }
     },
     {
+      "id": "keyword-qualifier-inquiry",
+      "filename": "مركز التفويج - عرض تقديمي - رد على استفسار فريق العمل الدائم.pptx",
+      "folder": "",
+      "notes": "Same as keyword-qualifier-phrase but with استفسار in the qualifier.",
+      "expected": {
+        "topic": "مركز التفويج",
+        "documentType": "عرض تقديمي",
+        "versionStatus": "رد على استفسار فريق العمل الدائم",
+        "proposedFullName": "مركز التفويج - عرض تقديمي - رد على استفسار فريق العمل الدائم.pptx"
+      }
+    },
+    {
       "id": "single-keyword-version",
       "filename": "مركز التفويج - عرض تقديمي - رد.pptx",
       "folder": "",
