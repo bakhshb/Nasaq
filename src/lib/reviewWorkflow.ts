@@ -34,6 +34,11 @@ export function getDisplayProposedFullName(row: ReviewRow, separator = " - "): s
   return getAcceptedProposedFullName(row, separator);
 }
 
+export function draftMatchesDisk(row: ReviewRow, separator = " - "): boolean {
+  const draft = getDraftProposedFullName(row, separator);
+  return draft !== "" && filenamesMatch(row.currentFullName, draft);
+}
+
 export function acceptReviewRow(row: ReviewRow, separator = " - "): ReviewRow {
   const acceptedTopic = row.topic.trim();
   const acceptedDocumentType = row.documentType.trim();
@@ -55,6 +60,7 @@ export function acceptReviewRow(row: ReviewRow, separator = " - "): ReviewRow {
     acceptedVersionStatus,
     reviewStatus: matchesDisk ? "complete" : "ready",
     selected: !matchesDisk,
+    applyError: undefined,
   };
 }
 
@@ -76,6 +82,7 @@ export function markRowPendingAfterEdit(row: ReviewRow, patch: Partial<ReviewRow
     acceptedDocumentType: "",
     acceptedVersionStatus: "",
     selected: false,
+    applyError: undefined,
   };
 }
 
@@ -93,17 +100,14 @@ export function countByReviewStatus(rows: ReviewRow[]): Record<ReviewStatus, num
   );
 }
 
+/** Only explicitly approved rows can be applied. */
 export function canApplyRow(row: ReviewRow): boolean {
-  return row.reviewStatus === "pending" || row.reviewStatus === "ready";
-}
-
-/** Proposed full name that would be applied after auto-accepting current draft fields. */
-export function getRenameProposedFullName(row: ReviewRow, separator = " - "): string {
-  return getAcceptedProposedFullName(acceptReviewRow(row, separator), separator);
+  return row.reviewStatus === "ready";
 }
 
 export interface RenameBatchItem {
   id: string;
+  reviewId: string;
   absolutePath: string;
   proposedFullName: string;
   topic: string;
@@ -112,16 +116,25 @@ export interface RenameBatchItem {
   relativePath: string;
 }
 
-export function buildRenameItemFromRow(row: ReviewRow, separator = " - "): RenameBatchItem {
-  const accepted = acceptReviewRow(row, separator);
+export function buildRenameItemFromRow(row: ReviewRow, separator = " - "): RenameBatchItem | null {
+  if (row.reviewStatus !== "ready") {
+    return null;
+  }
+
+  const proposedFullName = getAcceptedProposedFullName(row, separator);
+  if (!proposedFullName) {
+    return null;
+  }
+
   return {
-    id: accepted.id,
-    absolutePath: accepted.absolutePath,
-    proposedFullName: getAcceptedProposedFullName(accepted, separator),
-    topic: accepted.acceptedTopic,
-    documentType: accepted.acceptedDocumentType,
-    versionStatus: accepted.acceptedVersionStatus,
-    relativePath: accepted.relativePath,
+    id: row.id,
+    reviewId: row.reviewId,
+    absolutePath: row.absolutePath,
+    proposedFullName,
+    topic: row.acceptedTopic,
+    documentType: row.acceptedDocumentType,
+    versionStatus: row.acceptedVersionStatus,
+    relativePath: row.relativePath,
   };
 }
 
@@ -135,4 +148,24 @@ export function proposedStemFromFullName(row: ReviewRow, proposedFullName: strin
     return proposedFullName.slice(0, dotIndex);
   }
   return proposedFullName;
+}
+
+export function toReviewApprovalPayload(row: ReviewRow, separator = " - "): {
+  reviewId: string;
+  absolutePath: string;
+  knownAbsolutePaths: string[];
+  topic: string;
+  documentType: string;
+  versionStatus: string;
+  acceptedFullName: string;
+} {
+  return {
+    reviewId: row.reviewId,
+    absolutePath: row.absolutePath,
+    knownAbsolutePaths: row.knownAbsolutePaths,
+    topic: row.acceptedTopic,
+    documentType: row.acceptedDocumentType,
+    versionStatus: row.acceptedVersionStatus,
+    acceptedFullName: getAcceptedProposedFullName(row, separator),
+  };
 }

@@ -466,6 +466,21 @@ button.icon-btn {
   background: #f8fafc;
 }
 
+.row-action-btn-as-is {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.row-error {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #b42318;
+  max-width: 10rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .row-action-note {
   color: var(--muted);
   font-size: 0.8rem;

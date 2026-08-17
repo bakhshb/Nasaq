@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
-
 import {
   canSelectRow,
+  draftMatchesDisk,
   getDisplayProposedFullName,
   getDraftProposedFullName,
   REVIEW_STATUS_LABELS,
@@ -16,9 +15,10 @@ interface Props {
   filter: ReviewFilter;
   onUpdateRow: (id: string, patch: Partial<ReviewRow>) => void;
   onAcceptRow: (id: string) => void;
+  onSuggestDocumentType: (value: string) => void;
 }
 
-const MANUAL_OPTION = "__manual__";
+const DOCUMENT_TYPE_DATALIST_ID = "document-type-options";
 
 export default function FileReviewTable({
   rows,
@@ -27,6 +27,7 @@ export default function FileReviewTable({
   filter,
   onUpdateRow,
   onAcceptRow,
+  onSuggestDocumentType,
 }: Props) {
   const rowsWithMeta = rows.map((row) => ({
     row,
@@ -34,6 +35,7 @@ export default function FileReviewTable({
       row.reviewStatus === "pending"
         ? getDraftProposedFullName(row, separator)
         : getDisplayProposedFullName(row, separator),
+    approveAsIs: row.reviewStatus === "pending" && draftMatchesDisk(row, separator),
   }));
 
   const visibleRows =
@@ -43,6 +45,11 @@ export default function FileReviewTable({
 
   return (
     <div className="table-wrap">
+      <datalist id={DOCUMENT_TYPE_DATALIST_ID}>
+        {documentTypes.map((opt) => (
+          <option key={opt} value={opt} />
+        ))}
+      </datalist>
       <table className="review-table">
         <thead>
           <tr>
@@ -64,7 +71,7 @@ export default function FileReviewTable({
               </td>
             </tr>
           ) : (
-            visibleRows.map(({ row, proposed }) => {
+            visibleRows.map(({ row, proposed, approveAsIs }) => {
               const rowClass = [
                 row.warnings.includes("low_confidence") ? "low-confidence" : "",
                 `row-${row.reviewStatus}`,
@@ -73,7 +80,7 @@ export default function FileReviewTable({
                 .join(" ");
 
               return (
-                <tr key={row.id} className={rowClass}>
+                <tr key={row.reviewId} className={rowClass}>
                   <td className="col-select">
                     <input
                       type="checkbox"
@@ -86,17 +93,21 @@ export default function FileReviewTable({
                     <span className={`status-badge status-${row.reviewStatus}`}>
                       {REVIEW_STATUS_LABELS[row.reviewStatus]}
                     </span>
+                    {row.applyError && (
+                      <div className="row-error" title={row.applyError}>
+                        {row.applyError}
+                      </div>
+                    )}
                   </td>
                   <td className="cell-filename" title={row.relativePath} dir="auto">
                     {row.currentFullName}
                   </td>
                   <td>
                     <DocumentTypeCell
-                      key={row.id}
                       value={row.documentType}
-                      options={documentTypes}
                       disabled={row.reviewStatus === "complete"}
                       onChange={(value) => onUpdateRow(row.id, { documentType: value })}
+                      onSuggestNew={onSuggestDocumentType}
                     />
                   </td>
                   <td>
@@ -126,10 +137,15 @@ export default function FileReviewTable({
                     {row.reviewStatus === "pending" ? (
                       <button
                         type="button"
-                        className="row-action-btn"
+                        className={approveAsIs ? "row-action-btn row-action-btn-as-is" : "row-action-btn"}
                         onClick={() => onAcceptRow(row.id)}
+                        title={
+                          approveAsIs
+                            ? "الاسم على القرص مطابق للمقترح — اعتماد دون إعادة تسمية"
+                            : "اعتماد الاسم المقترح للتطبيق لاحقاً"
+                        }
                       >
-                        اعتماد
+                        {approveAsIs ? "اعتماد كما هو" : "اعتماد"}
                       </button>
                     ) : row.reviewStatus === "ready" ? (
                       <span className="row-action-note">بانتظار التطبيق</span>
@@ -149,78 +165,31 @@ export default function FileReviewTable({
 
 function DocumentTypeCell({
   value,
-  options,
   disabled,
   onChange,
+  onSuggestNew,
 }: {
   value: string;
-  options: string[];
   disabled?: boolean;
   onChange: (value: string) => void;
+  onSuggestNew: (value: string) => void;
 }) {
-  const startsInManual = value !== "" && !options.includes(value);
-  const [manualMode, setManualMode] = useState(startsInManual);
-
-  const selectValue = useMemo(() => {
-    if (options.includes(value)) {
-      return value;
-    }
-    return "";
-  }, [options, value]);
-
-  if (manualMode) {
-    return (
-      <div className="cell-combo">
-        <input
-          className="cell-input"
-          type="text"
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          dir="auto"
-          placeholder="اكتب نوع المستند"
-        />
-        <button
-          type="button"
-          className="cell-combo-btn"
-          disabled={disabled}
-          onClick={() => {
-            setManualMode(false);
-            if (!options.includes(value)) {
-              onChange("");
-            }
-          }}
-          title="اختيار من القائمة"
-        >
-          قائمة
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <select
-      className="cell-input cell-select"
-      value={selectValue}
+    <input
+      className="cell-input"
+      type="text"
+      list={DOCUMENT_TYPE_DATALIST_ID}
+      value={value}
       disabled={disabled}
-      onChange={(e) => {
-        const next = e.target.value;
-        if (next === MANUAL_OPTION) {
-          setManualMode(true);
-          onChange("");
-          return;
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => {
+        const next = e.target.value.trim();
+        if (next) {
+          onSuggestNew(next);
         }
-        onChange(next);
       }}
       dir="auto"
-    >
-      <option value="">— اختر —</option>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-      <option value={MANUAL_OPTION}>كتابة يدوية...</option>
-    </select>
+      placeholder="اختر أو اكتب نوع المستند"
+    />
   );
 }
