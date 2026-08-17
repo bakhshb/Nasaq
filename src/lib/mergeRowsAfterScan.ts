@@ -1,10 +1,9 @@
-import { getProposedFullName } from "./buildProposedName";
 import type { ReviewRow } from "../types";
-import { filenamesMatch, hasPendingEdits } from "./fileStatus";
+import { filenamesMatch } from "./fileStatus";
+import { getAcceptedProposedFullName } from "./reviewWorkflow";
 
 /**
- * Preserve user edits and selection when refreshing scan results for the same files.
- * After a successful rename, keep fresh scan values instead of stale field edits.
+ * Preserve review decisions and field edits when refreshing scan results.
  */
 export function mergeRowsAfterScan(
   previous: ReviewRow[],
@@ -19,59 +18,83 @@ export function mergeRowsAfterScan(
       return row;
     }
 
-    const scannedProposed = getProposedFullName(
-      row.topic,
-      row.documentType,
-      row.versionStatus,
-      row.extension,
-      separator,
-    );
-
-    // Prefer a fresh scan that already matches the filename on disk over stale UI edits
-    // (e.g. after an app update fixed parsing but the session still had "رد" only).
-    if (filenamesMatch(row.currentFullName, scannedProposed)) {
-      return { ...row, selected: false };
-    }
-
-    const priorProposed = getProposedFullName(
-      prior.topic,
-      prior.documentType,
-      prior.versionStatus,
-      prior.extension,
-      separator,
-    );
-
-    if (filenamesMatch(row.currentFullName, priorProposed)) {
-      const approvedFullName = getProposedFullName(
-        prior.topic,
-        prior.documentType,
-        prior.versionStatus,
-        prior.extension,
-        separator,
-      );
+    if (prior.reviewStatus === "pending") {
+      if (!hasPriorFieldEdits(prior)) {
+        return { ...row, selected: prior.selected };
+      }
       return {
         ...row,
         topic: prior.topic,
         documentType: prior.documentType,
         versionStatus: prior.versionStatus,
-        scannedTopic: prior.topic,
-        scannedDocumentType: prior.documentType,
-        scannedVersionStatus: prior.versionStatus,
-        scannedProposedFullName: approvedFullName,
+        selected: prior.selected,
+      };
+    }
+
+    const acceptedFullName = getAcceptedProposedFullName(prior, separator);
+    const diskMatchesAccepted = filenamesMatch(row.currentFullName, acceptedFullName);
+
+    if (prior.reviewStatus === "ready") {
+      if (diskMatchesAccepted) {
+        return {
+          ...row,
+          topic: prior.acceptedTopic,
+          documentType: prior.acceptedDocumentType,
+          versionStatus: prior.acceptedVersionStatus,
+          acceptedTopic: prior.acceptedTopic,
+          acceptedDocumentType: prior.acceptedDocumentType,
+          acceptedVersionStatus: prior.acceptedVersionStatus,
+          reviewStatus: "complete",
+          selected: false,
+        };
+      }
+
+      return {
+        ...row,
+        topic: prior.acceptedTopic,
+        documentType: prior.acceptedDocumentType,
+        versionStatus: prior.acceptedVersionStatus,
+        acceptedTopic: prior.acceptedTopic,
+        acceptedDocumentType: prior.acceptedDocumentType,
+        acceptedVersionStatus: prior.acceptedVersionStatus,
+        reviewStatus: "ready",
+        selected: prior.selected,
+      };
+    }
+
+    if (prior.reviewStatus === "complete") {
+      if (diskMatchesAccepted) {
+        return {
+          ...row,
+          topic: prior.acceptedTopic,
+          documentType: prior.acceptedDocumentType,
+          versionStatus: prior.acceptedVersionStatus,
+          acceptedTopic: prior.acceptedTopic,
+          acceptedDocumentType: prior.acceptedDocumentType,
+          acceptedVersionStatus: prior.acceptedVersionStatus,
+          reviewStatus: "complete",
+          selected: false,
+        };
+      }
+
+      return {
+        ...row,
+        reviewStatus: "pending",
+        acceptedTopic: "",
+        acceptedDocumentType: "",
+        acceptedVersionStatus: "",
         selected: false,
       };
     }
 
-    if (!hasPendingEdits(prior)) {
-      return { ...row, selected: prior.selected };
-    }
-
-    return {
-      ...row,
-      topic: prior.topic,
-      documentType: prior.documentType,
-      versionStatus: prior.versionStatus,
-      selected: prior.selected,
-    };
+    return row;
   });
+}
+
+function hasPriorFieldEdits(row: ReviewRow): boolean {
+  return (
+    row.topic !== row.scannedTopic ||
+    row.documentType !== row.scannedDocumentType ||
+    row.versionStatus !== row.scannedVersionStatus
+  );
 }

@@ -34,6 +34,8 @@ export interface AnalyzedFile {
   warnings: string[];
 }
 
+export type ReviewStatus = "pending" | "ready" | "complete";
+
 export interface ReviewRow {
   id: string;
   absolutePath: string;
@@ -44,11 +46,14 @@ export interface ReviewRow {
   documentType: string;
   topic: string;
   versionStatus: string;
+  reviewStatus: ReviewStatus;
+  acceptedTopic: string;
+  acceptedDocumentType: string;
+  acceptedVersionStatus: string;
   scannedProposedFullName: string;
   scannedTopic: string;
   scannedDocumentType: string;
   scannedVersionStatus: string;
-  renameApplied: boolean;
   selected: boolean;
   warnings: string[];
 }

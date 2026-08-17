@@ -12,9 +12,14 @@ import {
 } from "./components/icons";
 import PreviewDialog from "./components/PreviewDialog";
 import UpdateBanner from "./components/UpdateBanner";
-import { getProposedFullName } from "./lib/buildProposedName";
-import { getFileRenameStatus, hasPendingEdits, type FileFilter } from "./lib/fileStatus";
 import { mergeRowsAfterScan } from "./lib/mergeRowsAfterScan";
+import {
+  acceptReviewRow,
+  countByReviewStatus,
+  getAcceptedProposedFullName,
+  markRowPendingAfterEdit,
+  type ReviewFilter,
+} from "./lib/reviewWorkflow";
 import type { AnalyzedFile, AppConfig, ReviewRow } from "./types";
 
 function toReviewRow(file: AnalyzedFile): ReviewRow {
@@ -29,11 +34,14 @@ function toReviewRow(file: AnalyzedFile): ReviewRow {
     documentType: file.documentType,
     topic: file.topic,
     versionStatus: file.versionStatus,
+    reviewStatus: "pending",
+    acceptedTopic: "",
+    acceptedDocumentType: "",
+    acceptedVersionStatus: "",
     scannedProposedFullName: file.proposedFullName,
     scannedTopic: file.topic,
     scannedDocumentType: file.documentType,
     scannedVersionStatus: file.versionStatus,
-    renameApplied: false,
     selected: false,
     warnings: file.warnings ?? [],
   };
@@ -65,7 +73,7 @@ function MainApp() {
   const [canUndo, setCanUndo] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState("");
-  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
+  const [fileFilter, setFileFilter] = useState<ReviewFilter>("all");
 
   const loadConfig = useCallback(async () => {
     const data = await window.nasaq.getConfig();
@@ -97,7 +105,7 @@ function MainApp() {
         setLoading(false);
       }
     },
-    [recursive],
+    [recursive, separator],
   );
 
   const handleSelectFolder = async () => {
@@ -119,54 +127,58 @@ function MainApp() {
         if (row.id !== id) {
           return row;
         }
-
-        const updated = { ...row, ...patch };
-        const fieldEdited =
-          patch.topic !== undefined ||
-          patch.documentType !== undefined ||
-          patch.versionStatus !== undefined;
-
-        if (fieldEdited && hasPendingEdits(updated) && getFileRenameStatus(updated, separator) === "needs_rename") {
-          return { ...updated, selected: true };
-        }
-
-        return updated;
+        return markRowPendingAfterEdit(row, patch);
       }),
     );
   };
 
-  const selectedRows = useMemo(() => rows.filter((r) => r.selected), [rows]);
-  const selectedCount = selectedRows.length;
+  const handleAcceptRow = (id: string) => {
+    setRows((prev) =>
+      prev.map((row) => (row.id === id ? acceptReviewRow(row, separator) : row)),
+    );
+  };
 
-  const getRowProposedFullName = (row: ReviewRow) =>
-    getProposedFullName(row.topic, row.documentType, row.versionStatus, row.extension, separator);
+  const handleAcceptSelected = () => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.selected && row.reviewStatus === "pending" ? acceptReviewRow(row, separator) : row,
+      ),
+    );
+  };
 
-  const rowStats = useMemo(() => {
-    let organized = 0;
-    let needsRename = 0;
-    for (const row of rows) {
-      const status = getFileRenameStatus(row, separator);
-      if (status === "organized") {
-        organized += 1;
-      } else {
-        needsRename += 1;
-      }
-    }
-    return { organized, needsRename };
-  }, [rows]);
+  const readyRows = useMemo(() => rows.filter((row) => row.reviewStatus === "ready"), [rows]);
+  const selectedReadyRows = useMemo(
+    () => readyRows.filter((row) => row.selected),
+    [readyRows],
+  );
+  const selectedPendingCount = useMemo(
+    () => rows.filter((row) => row.selected && row.reviewStatus === "pending").length,
+    [rows],
+  );
 
-  const handleSelectRemaining = () => {
+  const rowStats = useMemo(() => countByReviewStatus(rows), [rows]);
+
+  const handleSelectReady = () => {
     setRows((prev) =>
       prev.map((row) => ({
         ...row,
-        selected: getFileRenameStatus(row, separator) === "needs_rename",
+        selected: row.reviewStatus === "ready",
+      })),
+    );
+  };
+
+  const handleSelectPending = () => {
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        selected: row.reviewStatus === "pending",
       })),
     );
   };
 
   const handleApplyClick = () => {
-    if (selectedCount === 0) {
-      setError("حدّد ملفًا واحدًا على الأقل لإعادة التسمية.");
+    if (selectedReadyRows.length === 0) {
+      setError("حدّد ملفًا واحدًا على الأقل بحالة «جاهز للتطبيق».");
       return;
     }
     setShowPreview(true);
@@ -180,10 +192,10 @@ function MainApp() {
       const items = rowsToRename.map((row) => ({
         id: row.id,
         absolutePath: row.absolutePath,
-        proposedFullName: getRowProposedFullName(row),
-        topic: row.topic,
-        documentType: row.documentType,
-        versionStatus: row.versionStatus,
+        proposedFullName: getAcceptedProposedFullName(row, separator),
+        topic: row.acceptedTopic,
+        documentType: row.acceptedDocumentType,
+        versionStatus: row.acceptedVersionStatus,
         relativePath: row.relativePath,
       }));
 
@@ -191,7 +203,7 @@ function MainApp() {
       setShowPreview(false);
 
       if (result.count === 0) {
-        setStatusMessage("لم يتغيّر أي اسم — الاسم المقترح مطابق للاسم الحالي.");
+        setStatusMessage("لم يتغيّر أي اسم — الاسم المعتمد مطابق للاسم الحالي.");
         return;
       }
 
@@ -199,7 +211,12 @@ function MainApp() {
       setCanUndo(true);
       await scanFolder(rootPath, { preserveStatus: true });
     } catch (err) {
-      setError(String(err));
+      const message = String(err);
+      if (message.includes("تعذّر العثور على الملف")) {
+        setError(`${message} جرّب «إعادة المسح» ثم أعد المحاولة.`);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -327,27 +344,44 @@ function MainApp() {
                 </button>
                 <button
                   type="button"
-                  className={fileFilter === "remaining" ? "filter-btn active" : "filter-btn"}
-                  onClick={() => setFileFilter("remaining")}
+                  className={fileFilter === "pending" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("pending")}
                 >
-                  المتبقي ({rowStats.needsRename})
+                  للمراجعة ({rowStats.pending})
                 </button>
                 <button
                   type="button"
-                  className={fileFilter === "organized" ? "filter-btn active" : "filter-btn"}
-                  onClick={() => setFileFilter("organized")}
+                  className={fileFilter === "ready" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("ready")}
                 >
-                  المنظم ({rowStats.organized})
+                  جاهز للتطبيق ({rowStats.ready})
+                </button>
+                <button
+                  type="button"
+                  className={fileFilter === "complete" ? "filter-btn active" : "filter-btn"}
+                  onClick={() => setFileFilter("complete")}
+                >
+                  مكتمل ({rowStats.complete})
                 </button>
               </div>
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={handleSelectRemaining}
-                disabled={rowStats.needsRename === 0 || loading}
-              >
-                تحديد المتبقي
-              </button>
+              <div className="toolbar-actions">
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={handleSelectPending}
+                  disabled={rowStats.pending === 0 || loading}
+                >
+                  تحديد للمراجعة
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  onClick={handleSelectReady}
+                  disabled={rowStats.ready === 0 || loading}
+                >
+                  تحديد الجاهز
+                </button>
+              </div>
             </div>
             <FileReviewTable
               rows={rows}
@@ -355,6 +389,7 @@ function MainApp() {
               separator={separator}
               filter={fileFilter}
               onUpdateRow={updateRow}
+              onAcceptRow={handleAcceptRow}
             />
           </>
         )}
@@ -363,24 +398,34 @@ function MainApp() {
       <footer className="app-footer">
         <div className="footer-meta">
           <span className="footer-selection">
-            {rowStats.needsRename} يحتاج تسمية · {rowStats.organized} منظم · {selectedCount} محدد
+            {rowStats.pending} للمراجعة · {rowStats.ready} جاهز · {rowStats.complete} مكتمل
           </span>
           {appVersion && <span className="footer-version">v{appVersion}</span>}
         </div>
-        <button
-          type="button"
-          className="primary"
-          onClick={handleApplyClick}
-          disabled={selectedCount === 0 || loading}
-        >
-          Preview &amp; rename
-        </button>
+        <div className="footer-actions">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={handleAcceptSelected}
+            disabled={selectedPendingCount === 0 || loading}
+          >
+            اعتماد المحدد ({selectedPendingCount})
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={handleApplyClick}
+            disabled={selectedReadyRows.length === 0 || loading}
+          >
+            تطبيق التسمية ({selectedReadyRows.length})
+          </button>
+        </div>
       </footer>
 
       {showPreview && rootPath && (
         <PreviewDialog
           rootPath={rootPath}
-          rows={selectedRows}
+          rows={selectedReadyRows}
           separator={separator}
           onClose={() => setShowPreview(false)}
           onConfirm={handleConfirmRename}
