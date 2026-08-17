@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getProposedFullName } from "../lib/buildProposedName";
+import { filenamesMatch } from "../lib/fileStatus";
+import { getAcceptedProposedFullName } from "../lib/reviewWorkflow";
 import type { ReviewRow, ValidationIssue } from "../types";
 
 interface Props {
@@ -11,10 +12,6 @@ interface Props {
   onConfirm: (rows: ReviewRow[]) => void;
 }
 
-function normalizeFilename(name: string): string {
-  return name.trim().toLowerCase().normalize("NFC");
-}
-
 export default function PreviewDialog({ rootPath, rows, separator, onClose, onConfirm }: Props) {
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,14 +19,8 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
   const hasActualChanges = useMemo(
     () =>
       rows.some((row) => {
-        const proposed = getProposedFullName(
-          row.topic,
-          row.documentType,
-          row.versionStatus,
-          row.extension,
-          separator,
-        );
-        return normalizeFilename(proposed) !== normalizeFilename(row.currentFullName);
+        const proposed = getAcceptedProposedFullName(row, separator);
+        return !filenamesMatch(proposed, row.currentFullName);
       }),
     [rows, separator],
   );
@@ -42,13 +33,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
         existingPaths[row.id] = row.absolutePath;
       }
       const proposals = rows.map((row) => {
-        const proposedFullName = getProposedFullName(
-          row.topic,
-          row.documentType,
-          row.versionStatus,
-          row.extension,
-          separator,
-        );
+        const proposedFullName = getAcceptedProposedFullName(row, separator);
         return {
           fileId: row.id,
           proposedName: proposedFullName.replace(row.extension, ""),
@@ -77,12 +62,12 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
         onClick={(e) => e.stopPropagation()}
       >
         <header className="modal-header">
-          <h2 id="preview-title">معاينة إعادة التسمية</h2>
+          <h2 id="preview-title">معاينة تطبيق التسمية</h2>
           <button type="button" className="ghost" onClick={onClose}>إغلاق</button>
         </header>
 
         <p className="modal-note">
-          سيتم إعادة تسمية {rows.length} ملف. لن يتم تغيير أي شيء حتى تؤكد.
+          سيتم إعادة تسمية {rows.length} ملف معتمد. لن يتغيّر أي شيء على القرص حتى تؤكد.
         </p>
 
         {loading && <p className="modal-note">جاري التحقق…</p>}
@@ -91,7 +76,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
           <div className="validation-issues">
             <strong>لا يوجد تغيير في الأسماء</strong>
             <p className="modal-note">
-              الاسم المقترح مطابق للاسم الحالي لكل الملفات المحددة. عدّل الحقول ثم أعد المحاولة.
+              الاسم المعتمد مطابق للاسم الحالي لكل الملفات المحددة.
             </p>
           </div>
         )}
@@ -115,7 +100,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
               <tr>
                 <th>الحالي</th>
                 <th>→</th>
-                <th>الجديد</th>
+                <th>المعتمد</th>
               </tr>
             </thead>
             <tbody>
@@ -123,15 +108,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
                 <tr key={row.id}>
                   <td dir="auto">{row.currentFullName}</td>
                   <td>→</td>
-                  <td dir="auto">
-                    {getProposedFullName(
-                      row.topic,
-                      row.documentType,
-                      row.versionStatus,
-                      row.extension,
-                      separator,
-                    )}
-                  </td>
+                  <td dir="auto">{getAcceptedProposedFullName(row, separator)}</td>
                 </tr>
               ))}
             </tbody>
@@ -150,7 +127,7 @@ export default function PreviewDialog({ rootPath, rows, separator, onClose, onCo
               issues.some((i) => i.code === "duplicate_proposed_name" || i.code === "invalid_windows_chars")
             }
           >
-            تأكيد إعادة التسمية
+            تأكيد التطبيق
           </button>
         </footer>
       </div>

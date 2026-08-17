@@ -18,6 +18,8 @@ export interface UpdateStatus {
 
 let mainWindow: BrowserWindow | null = null;
 let packagedApp = false;
+let downloadInProgress = false;
+let pendingUpdateVersion: string | undefined;
 
 export function setUpdateWindow(window: BrowserWindow): void {
   mainWindow = window;
@@ -29,6 +31,24 @@ function emit(status: UpdateStatus): void {
   }
 }
 
+async function startAutoDownload(version: string): Promise<void> {
+  if (downloadInProgress) {
+    return;
+  }
+
+  downloadInProgress = true;
+  emit({ phase: "downloading", version, percent: 0 });
+
+  try {
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    emit({ phase: "error", message });
+  } finally {
+    downloadInProgress = false;
+  }
+}
+
 export function initAutoUpdater(isPackaged: boolean): void {
   packagedApp = isPackaged;
   if (!isPackaged) {
@@ -37,13 +57,17 @@ export function initAutoUpdater(isPackaged: boolean): void {
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+  // Full installer download when skipping versions (e.g. 0.1.20 -> 0.1.22).
+  autoUpdater.disableDifferentialDownload = true;
 
   autoUpdater.on("checking-for-update", () => {
     emit({ phase: "checking" });
   });
 
   autoUpdater.on("update-available", (info) => {
+    pendingUpdateVersion = info.version;
     emit({ phase: "available", version: info.version });
+    void startAutoDownload(info.version);
   });
 
   autoUpdater.on("update-not-available", () => {
@@ -51,10 +75,11 @@ export function initAutoUpdater(isPackaged: boolean): void {
   });
 
   autoUpdater.on("download-progress", (progress) => {
-    emit({ phase: "downloading", percent: progress.percent });
+    emit({ phase: "downloading", version: pendingUpdateVersion, percent: progress.percent });
   });
 
   autoUpdater.on("update-downloaded", (info) => {
+    pendingUpdateVersion = undefined;
     emit({ phase: "downloaded", version: info.version });
   });
 
@@ -88,7 +113,15 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 export async function downloadUpdate(): Promise<void> {
-  await autoUpdater.downloadUpdate();
+  if (pendingUpdateVersion) {
+    await startAutoDownload(pendingUpdateVersion);
+    return;
+  }
+
+  const result = await autoUpdater.checkForUpdates();
+  if (result?.isUpdateAvailable && result.updateInfo.version) {
+    await startAutoDownload(result.updateInfo.version);
+  }
 }
 
 export function installUpdate(): void {

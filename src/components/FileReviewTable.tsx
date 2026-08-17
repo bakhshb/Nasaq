@@ -1,38 +1,45 @@
 import { useMemo, useState } from "react";
 
-import { getProposedFullName } from "../lib/buildProposedName";
-import { getFileRenameStatus, type FileFilter } from "../lib/fileStatus";
+import {
+  canSelectRow,
+  getDisplayProposedFullName,
+  getDraftProposedFullName,
+  REVIEW_STATUS_LABELS,
+  type ReviewFilter,
+} from "../lib/reviewWorkflow";
 import type { ReviewRow } from "../types";
 
 interface Props {
   rows: ReviewRow[];
   documentTypes: string[];
   separator: string;
-  filter: FileFilter;
+  filter: ReviewFilter;
   onUpdateRow: (id: string, patch: Partial<ReviewRow>) => void;
+  onAcceptRow: (id: string) => void;
 }
 
 const MANUAL_OPTION = "__manual__";
 
-export default function FileReviewTable({ rows, documentTypes, separator, filter, onUpdateRow }: Props) {
-  const rowsWithStatus = rows.map((row) => ({
+export default function FileReviewTable({
+  rows,
+  documentTypes,
+  separator,
+  filter,
+  onUpdateRow,
+  onAcceptRow,
+}: Props) {
+  const rowsWithMeta = rows.map((row) => ({
     row,
-    status: getFileRenameStatus(row, separator),
-    proposed: getProposedFullName(
-      row.topic,
-      row.documentType,
-      row.versionStatus,
-      row.extension,
-      separator,
-    ),
+    proposed:
+      row.reviewStatus === "pending"
+        ? getDraftProposedFullName(row, separator)
+        : getDisplayProposedFullName(row, separator),
   }));
 
   const visibleRows =
-    filter === "remaining"
-      ? rowsWithStatus.filter((entry) => entry.status === "needs_rename")
-      : filter === "organized"
-        ? rowsWithStatus.filter((entry) => entry.status === "organized")
-        : rowsWithStatus;
+    filter === "all"
+      ? rowsWithMeta
+      : rowsWithMeta.filter((entry) => entry.row.reviewStatus === filter);
 
   return (
     <div className="table-wrap">
@@ -46,20 +53,21 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
             <th>الموضوع</th>
             <th>الإصدار/الحالة</th>
             <th>اسم الملف المقترح</th>
+            <th className="col-action">إجراء</th>
           </tr>
         </thead>
         <tbody>
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="table-empty">
+              <td colSpan={8} className="table-empty">
                 لا توجد ملفات في هذا العرض.
               </td>
             </tr>
           ) : (
-            visibleRows.map(({ row, status, proposed }) => {
+            visibleRows.map(({ row, proposed }) => {
               const rowClass = [
                 row.warnings.includes("low_confidence") ? "low-confidence" : "",
-                status === "organized" ? "row-organized" : "row-needs-rename",
+                `row-${row.reviewStatus}`,
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -70,13 +78,13 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
                     <input
                       type="checkbox"
                       checked={row.selected}
-                      disabled={status === "organized"}
+                      disabled={!canSelectRow(row)}
                       onChange={(e) => onUpdateRow(row.id, { selected: e.target.checked })}
                     />
                   </td>
                   <td className="col-status">
-                    <span className={`status-badge status-${status}`}>
-                      {status === "organized" ? "منظم" : "يحتاج تسمية"}
+                    <span className={`status-badge status-${row.reviewStatus}`}>
+                      {REVIEW_STATUS_LABELS[row.reviewStatus]}
                     </span>
                   </td>
                   <td className="cell-filename" title={row.relativePath} dir="auto">
@@ -87,6 +95,7 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
                       key={row.id}
                       value={row.documentType}
                       options={documentTypes}
+                      disabled={row.reviewStatus === "complete"}
                       onChange={(value) => onUpdateRow(row.id, { documentType: value })}
                     />
                   </td>
@@ -95,6 +104,7 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
                       className="cell-input"
                       type="text"
                       value={row.topic}
+                      disabled={row.reviewStatus === "complete"}
                       onChange={(e) => onUpdateRow(row.id, { topic: e.target.value })}
                       dir="auto"
                     />
@@ -104,11 +114,29 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
                       className="cell-input"
                       type="text"
                       value={row.versionStatus}
+                      disabled={row.reviewStatus === "complete"}
                       onChange={(e) => onUpdateRow(row.id, { versionStatus: e.target.value })}
                       dir="auto"
                     />
                   </td>
-                  <td className="cell-proposed" dir="auto">{proposed}</td>
+                  <td className="cell-proposed" dir="auto">
+                    {proposed}
+                  </td>
+                  <td className="col-action">
+                    {row.reviewStatus === "pending" ? (
+                      <button
+                        type="button"
+                        className="row-action-btn"
+                        onClick={() => onAcceptRow(row.id)}
+                      >
+                        اعتماد
+                      </button>
+                    ) : row.reviewStatus === "ready" ? (
+                      <span className="row-action-note">بانتظار التطبيق</span>
+                    ) : (
+                      <span className="row-action-note">✓</span>
+                    )}
+                  </td>
                 </tr>
               );
             })
@@ -122,10 +150,12 @@ export default function FileReviewTable({ rows, documentTypes, separator, filter
 function DocumentTypeCell({
   value,
   options,
+  disabled,
   onChange,
 }: {
   value: string;
   options: string[];
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   const startsInManual = value !== "" && !options.includes(value);
@@ -145,6 +175,7 @@ function DocumentTypeCell({
           className="cell-input"
           type="text"
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           dir="auto"
           placeholder="اكتب نوع المستند"
@@ -152,6 +183,7 @@ function DocumentTypeCell({
         <button
           type="button"
           className="cell-combo-btn"
+          disabled={disabled}
           onClick={() => {
             setManualMode(false);
             if (!options.includes(value)) {
@@ -170,6 +202,7 @@ function DocumentTypeCell({
     <select
       className="cell-input cell-select"
       value={selectValue}
+      disabled={disabled}
       onChange={(e) => {
         const next = e.target.value;
         if (next === MANUAL_OPTION) {
