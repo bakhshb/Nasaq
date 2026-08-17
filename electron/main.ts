@@ -14,9 +14,10 @@ import {
 import { PythonBridge } from "./pythonBridge";
 import {
   applyRenames,
-  buildTargetPath,
   filterRenameMoves,
+  prepareRenameMoves,
   RenameBatch,
+  RenameError,
   RenameMove,
   undoRenames,
 } from "./rename";
@@ -117,48 +118,58 @@ function registerIpcHandlers(): void {
         }>;
       },
     ) => {
-      const moves: RenameMove[] = payload.items.map((item) => ({
-        fromPath: item.absolutePath,
-        toPath: buildTargetPath(item.absolutePath, item.proposedFullName),
-      }));
+      try {
+        const moves = await prepareRenameMoves(payload.rootPath, payload.items);
+        const actionableMoves = filterRenameMoves(moves);
+        const appliedCount = await applyRenames(moves);
 
-      const actionableMoves = filterRenameMoves(moves);
-      const appliedCount = await applyRenames(moves);
+        if (actionableMoves.length > 0) {
+          const approvalItems = actionableMoves.map((move, index) => {
+            const source =
+              payload.items.find((item) => {
+                const candidatePaths = [item.absolutePath, move.fromPath];
+                return candidatePaths.some(
+                  (candidate) =>
+                    path.resolve(candidate).toLowerCase() === path.resolve(move.fromPath).toLowerCase(),
+                );
+              }) ?? payload.items[index];
+            const relativePath = source?.relativePath ?? "";
+            const updatedRelativePath = relativePath.includes(path.sep) || relativePath.includes("/")
+              ? `${relativePath.slice(0, Math.max(relativePath.lastIndexOf("/"), relativePath.lastIndexOf("\\")) + 1)}${path.basename(move.toPath)}`
+              : path.basename(move.toPath);
 
-      if (actionableMoves.length > 0) {
-        const approvalItems = actionableMoves.map((move, index) => {
-          const source = payload.items.find((item) => item.absolutePath === move.fromPath) ?? payload.items[index];
-          const relativePath = source?.relativePath ?? "";
-          const updatedRelativePath = relativePath.includes("/")
-            ? `${relativePath.slice(0, relativePath.lastIndexOf("/") + 1)}${path.basename(move.toPath)}`
-            : path.basename(move.toPath);
+            return {
+              fromPath: move.fromPath,
+              toPath: move.toPath,
+              topic: source?.topic ?? "",
+              documentType: source?.documentType ?? "",
+              versionStatus: source?.versionStatus ?? "",
+              proposedFullName: path.basename(move.toPath),
+              relativePath: updatedRelativePath,
+            };
+          });
 
-          return {
-            fromPath: move.fromPath,
-            toPath: move.toPath,
-            topic: source?.topic ?? "",
-            documentType: source?.documentType ?? "",
-            versionStatus: source?.versionStatus ?? "",
-            proposedFullName: path.basename(move.toPath),
-            relativePath: updatedRelativePath,
+          await python.call("save_approved_names", {
+            rootPath: payload.rootPath,
+            items: approvalItems,
+          });
+
+          const batch: RenameBatch = {
+            id: `batch-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            moves: actionableMoves,
+            approvalMoves: actionableMoves,
           };
-        });
+          undoStack.push(batch);
+        }
 
-        await python.call("save_approved_names", {
-          rootPath: payload.rootPath,
-          items: approvalItems,
-        });
-
-        const batch: RenameBatch = {
-          id: `batch-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          moves: actionableMoves,
-          approvalMoves: actionableMoves,
-        };
-        undoStack.push(batch);
+        return { batchId: `batch-${Date.now()}`, count: appliedCount };
+      } catch (error) {
+        if (error instanceof RenameError) {
+          throw new Error(error.message);
+        }
+        throw error;
       }
-
-      return { batchId: `batch-${Date.now()}`, count: appliedCount };
     },
   );
 

@@ -33,3 +33,17 @@ def test_no_extension_warning():
 def test_reserved_windows_name():
     issues = validate_filename_component("CON")
     assert "reserved_windows_name" in issues
+
+
+def test_missing_source_file(tmp_path):
+    missing = tmp_path / "missing.docx"
+    proposals = [
+        BatchProposal(file_id="a", proposed_full_name="topic - report - final.pdf"),
+    ]
+    issues = validate_batch(
+        str(tmp_path),
+        proposals,
+        existing_paths={"a": str(missing)},
+    )
+    codes = [issue.code for issue in issues]
+    assert "source_not_found" in codes
