@@ -84,6 +84,8 @@ class ScannedFile:
     folder_name: str
     size_bytes: int = 0
     modified_at: str = ""
+    created_at: str = ""
+    created_at_is_birthtime: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -95,6 +97,8 @@ class ScannedFile:
             "folderName": self.folder_name,
             "sizeBytes": self.size_bytes,
             "modifiedAt": self.modified_at,
+            "createdAt": self.created_at,
+            "createdAtIsBirthtime": self.created_at_is_birthtime,
         }
 
 
@@ -124,6 +128,9 @@ class AnalysisResult:
             "proposedFullName": self.proposed_full_name,
             "confidence": self.confidence.to_dict(),
             "warnings": list(self.warnings),
+            "modifiedAt": self.scanned.modified_at,
+            "createdAt": self.scanned.created_at,
+            "createdAtIsBirthtime": self.scanned.created_at_is_birthtime,
         }
 
 

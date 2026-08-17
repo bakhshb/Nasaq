@@ -64,6 +64,9 @@ function toReviewRow(file: ScannedFile): ReviewRow {
     scannedVersionStatus: file.versionStatus,
     selected: false,
     warnings: file.warnings ?? [],
+    createdAt: file.createdAt,
+    createdAtIsBirthtime: file.createdAtIsBirthtime,
+    modifiedAt: file.modifiedAt,
   };
 }
 
@@ -532,6 +535,7 @@ function MainApp() {
               onUpdateRow={updateRow}
               onAcceptRow={(id) => void handleAcceptRow(id)}
               onSuggestDocumentType={(value) => void handleSuggestDocumentType(value)}
+              onFileActionError={(message) => setError(message)}
             />
           </>
         )}

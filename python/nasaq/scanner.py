@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -10,6 +11,25 @@ from typing import List
 from nasaq.models import AppConfig, ScannedFile
 from nasaq.naming.normalize import split_extension
 from nasaq.path_utils import resolve_directory
+
+
+def _created_at_from_stat(stat) -> tuple[str, bool]:
+    """Return (iso timestamp, is_birthtime)."""
+    platform = sys.platform
+    if platform in ("win32", "darwin"):
+        ts = stat.st_birthtime
+        return (
+            datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(),
+            True,
+        )
+
+    birthtime = getattr(stat, "st_birthtime", None)
+    if birthtime is not None:
+        created = datetime.fromtimestamp(birthtime, tz=timezone.utc)
+        if created.year > 1980:
+            return created.isoformat(), True
+
+    return datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc).isoformat(), False
 
 
 def scan_directory(root_path: str, config: AppConfig) -> List[ScannedFile]:
@@ -33,6 +53,7 @@ def scan_directory(root_path: str, config: AppConfig) -> List[ScannedFile]:
 
         file_id = _make_id(str(path))
         modified = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+        created_at, created_at_is_birthtime = _created_at_from_stat(stat)
 
         results.append(
             ScannedFile(
@@ -44,6 +65,8 @@ def scan_directory(root_path: str, config: AppConfig) -> List[ScannedFile]:
                 folder_name=folder_name,
                 size_bytes=stat.st_size,
                 modified_at=modified,
+                created_at=created_at,
+                created_at_is_birthtime=created_at_is_birthtime,
             )
         )
 
