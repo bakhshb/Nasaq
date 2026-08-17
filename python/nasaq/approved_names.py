@@ -80,10 +80,13 @@ class ApprovedNamesStore:
         return self._path
 
     def lookup(self, absolute_path: str, current_full_name: str) -> ApprovedNameEntry | None:
-        entry = self._entries.get(_normalize_path_key(absolute_path))
+        key = _normalize_path_key(absolute_path)
+        entry = self._entries.get(key)
         if not entry:
             return None
         if not filenames_match(entry.approved_full_name, current_full_name):
+            self._entries.pop(key, None)
+            self._save()
             return None
         return entry
 

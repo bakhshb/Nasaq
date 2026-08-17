@@ -19,6 +19,20 @@ export function mergeRowsAfterScan(
       return row;
     }
 
+    const scannedProposed = getProposedFullName(
+      row.topic,
+      row.documentType,
+      row.versionStatus,
+      row.extension,
+      separator,
+    );
+
+    // Prefer a fresh scan that already matches the filename on disk over stale UI edits
+    // (e.g. after an app update fixed parsing but the session still had "رد" only).
+    if (filenamesMatch(row.currentFullName, scannedProposed)) {
+      return { ...row, selected: false };
+    }
+
     const priorProposed = getProposedFullName(
       prior.topic,
       prior.documentType,
