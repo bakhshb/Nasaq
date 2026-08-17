@@ -59,6 +59,11 @@ export default function FileReviewTable({
             <th className="col-select">تحديد</th>
             <th className="col-status">الحالة</th>
             <th>اسم الملف الحالي</th>
+            <th className="col-file-menu" aria-label="خيارات الملف">
+              <span className="col-file-menu-heading" aria-hidden="true">
+                ⋮
+              </span>
+            </th>
             <th>نوع المستند</th>
             <th>الموضوع</th>
             <th>الإصدار/الحالة</th>
@@ -69,7 +74,7 @@ export default function FileReviewTable({
         <tbody>
           {visibleRows.length === 0 ? (
             <tr>
-              <td colSpan={8} className="table-empty">
+              <td colSpan={9} className="table-empty">
                 لا توجد ملفات في هذا العرض.
               </td>
             </tr>
@@ -102,18 +107,16 @@ export default function FileReviewTable({
                       </div>
                     )}
                   </td>
-                  <td className="cell-filename" dir="auto">
-                    <div className="cell-filename-wrap">
-                      <span className="cell-filename-text" title={row.relativePath}>
-                        {row.currentFullName}
-                      </span>
-                      <FileRowMenu
-                        absolutePath={row.absolutePath}
-                        createdAt={row.createdAt}
-                        createdAtIsBirthtime={row.createdAtIsBirthtime}
-                        onError={onFileActionError}
-                      />
-                    </div>
+                  <td className="cell-filename" title={row.relativePath} dir="auto">
+                    {row.currentFullName}
+                  </td>
+                  <td className="col-file-menu">
+                    <FileRowMenu
+                      absolutePath={row.absolutePath}
+                      createdAt={row.createdAt}
+                      createdAtIsBirthtime={row.createdAtIsBirthtime}
+                      onError={onFileActionError}
+                    />
                   </td>
                   <td>
                     <DocumentTypeCell
