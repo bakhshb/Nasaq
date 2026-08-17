@@ -64,23 +64,18 @@ export default function UpdateBanner() {
   if (status.phase === "available") {
     return (
       <div className="banner update-banner">
-        <span className="update-text">يتوفر تحديث v{status.version}</span>
-        <div className="update-actions">
-          <button type="button" className="primary" onClick={() => window.nasaq.downloadUpdate()}>
-            تنزيل التحديث
-          </button>
-          <button type="button" className="ghost" onClick={() => setDismissed(true)} aria-label="إغلاق">
-            <CloseIcon />
-          </button>
-        </div>
+        <span className="update-text">يتوفر تحديث v{status.version} — جاري بدء التنزيل…</span>
       </div>
     );
   }
 
   if (status.phase === "downloading") {
+    const versionLabel = status.version ? ` v${status.version}` : "";
     return (
       <div className="banner update-banner">
-        <span className="update-text">جاري تنزيل التحديث… {Math.round(status.percent ?? 0)}%</span>
+        <span className="update-text">
+          جاري تنزيل التحديث{versionLabel}… {Math.round(status.percent ?? 0)}%
+        </span>
       </div>
     );
   }
