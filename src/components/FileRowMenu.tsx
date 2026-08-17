@@ -88,10 +88,11 @@ export default function FileRowMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
+        aria-label="خيارات الملف"
         title="خيارات الملف"
         onClick={() => setOpen((value) => !value)}
       >
-        <MoreVerticalIcon size={16} />
+        <MoreVerticalIcon size={18} />
       </button>
       {open && (
         <div className="file-row-menu-panel" id={menuId} role="menu">
